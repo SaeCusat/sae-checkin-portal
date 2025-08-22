@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
 import { auth, firestore } from '@/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import {
   doc,
   getDoc,
@@ -16,6 +16,7 @@ import {
   arrayUnion,
   arrayRemove,
   Timestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -33,13 +34,13 @@ type UserProfile = {
   mobileNumber: string;
   guardianNumber: string;
   photoUrl: string;
+  isCheckedIn?: boolean; // New field for live status
 };
 
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,74 +51,53 @@ export default function ProfilePage() {
     mobileNumber: '',
     guardianNumber: '',
     bloodGroup: '',
-    photoUrl: '', // Field for the image URL
+    photoUrl: '',
   });
 
   // --- Main useEffect Hook ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        const profile = await fetchUserProfile(currentUser);
-        if (profile) {
-          await checkUserStatus(currentUser.uid);
-        }
+        // Set up a real-time listener for the user's profile
+        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
+          if (doc.exists()) {
+            const profileData = doc.data() as UserProfile;
+            setUserProfile(profileData);
+            setFormData({
+              name: profileData.name,
+              mobileNumber: profileData.mobileNumber,
+              guardianNumber: profileData.guardianNumber,
+              bloodGroup: profileData.bloodGroup,
+              photoUrl: profileData.photoUrl,
+            });
+          } else {
+            console.error("No profile data found for this user.");
+            signOut(auth); // Log out if profile doesn't exist
+          }
+          setLoading(false);
+        });
+        return () => unsubscribeProfile(); // Cleanup profile listener
       } else {
         router.push('/');
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth(); // Cleanup auth listener
   }, [router]);
 
-  // --- Data Fetching Functions ---
-  const fetchUserProfile = async (currentUser: User) => {
-    try {
-      const userDocRef = doc(firestore, 'users', currentUser.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (userDoc.exists()) {
-        const profileData = userDoc.data() as UserProfile;
-        setUserProfile(profileData);
-        // Pre-fill form data when profile is loaded
-        setFormData({
-            name: profileData.name,
-            mobileNumber: profileData.mobileNumber,
-            guardianNumber: profileData.guardianNumber,
-            bloodGroup: profileData.bloodGroup,
-            photoUrl: profileData.photoUrl,
-        });
-        return profileData;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
-    }
-  };
-
-  const checkUserStatus = async (uid: string) => {
-    try {
-        const attendanceQuery = query(
-          collection(firestore, 'attendance'),
-          where('userId', '==', uid),
-          where('checkOutTime', '==', null)
-        );
-        const querySnapshot = await getDocs(attendanceQuery);
-        setIsCheckedIn(!querySnapshot.empty);
-    } catch (error) {
-        console.error("Error checking user status:", error);
-    }
-  };
-
-  // --- Check-in/Check-out Handlers ---
+  // --- Check-in/Check-out Handlers (Updated Logic) ---
   const handleCheckIn = async () => {
     if (!user || !userProfile) return;
     setIsSubmitting(true);
     try {
       const checkInTime = Timestamp.now();
       const attendanceRef = doc(collection(firestore, 'attendance'));
-      
+      const userDocRef = doc(firestore, 'users', user.uid);
+
+      // Create attendance record
       await setDoc(attendanceRef, {
         userId: user.uid,
         userName: userProfile.name,
@@ -127,6 +107,10 @@ export default function ProfilePage() {
         date: new Date().toISOString().split('T')[0],
       });
 
+      // Update user's status
+      await updateDoc(userDocRef, { isCheckedIn: true });
+
+      // Update lab status
       const labStatusRef = doc(firestore, 'labStatus', 'current');
       await setDoc(labStatusRef, {
           isLabOpen: true,
@@ -134,7 +118,6 @@ export default function ProfilePage() {
         }, { merge: true }
       );
 
-      setIsCheckedIn(true);
       alert('Checked in successfully!');
     } catch (error) {
       console.error("Error checking in:", error);
@@ -147,6 +130,7 @@ export default function ProfilePage() {
     if (!user || !userProfile) return;
     setIsSubmitting(true);
     try {
+      const userDocRef = doc(firestore, 'users', user.uid);
       const attendanceQuery = query(
         collection(firestore, 'attendance'),
         where('userId', '==', user.uid),
@@ -156,10 +140,12 @@ export default function ProfilePage() {
 
       if (!querySnapshot.empty) {
         const attendanceDocRef = querySnapshot.docs[0].ref;
-        await updateDoc(attendanceDocRef, {
-          checkOutTime: Timestamp.now(),
-        });
+        await updateDoc(attendanceDocRef, { checkOutTime: Timestamp.now() });
 
+        // Update user's status
+        await updateDoc(userDocRef, { isCheckedIn: false });
+
+        // Update lab status
         const labStatusRef = doc(firestore, 'labStatus', 'current');
         await updateDoc(labStatusRef, {
           currentlyCheckedIn: arrayRemove({ id: user.uid, name: userProfile.name }),
@@ -173,9 +159,9 @@ export default function ProfilePage() {
         } else {
           alert('Checked out successfully!');
         }
-        setIsCheckedIn(false);
-
       } else {
+        // If something is out of sync, correct the user's status
+        await updateDoc(userDocRef, { isCheckedIn: false });
         throw new Error("Could not find an open check-in record.");
       }
     } catch (error) {
@@ -206,7 +192,7 @@ export default function ProfilePage() {
             photoUrl: formData.photoUrl, // Save the new URL
         });
         
-        await fetchUserProfile(user);
+        // The real-time listener will automatically update the profile, no need to fetch again
         alert("Profile updated successfully!");
         setIsModalOpen(false);
 
@@ -217,10 +203,13 @@ export default function ProfilePage() {
     setIsSubmitting(false);
   };
 
-
   // --- Render Logic ---
   if (loading) {
-    return <p className="text-center mt-10">Loading...</p>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-center">Loading...</p>
+      </div>
+    );
   }
 
   if (user && userProfile) {
@@ -268,7 +257,7 @@ export default function ProfilePage() {
                   Edit Profile
                 </button>
                 <button
-                  onClick={() => auth.signOut()}
+                  onClick={() => signOut(auth)}
                   className="w-full px-4 py-3 font-bold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                 >
                   Sign Out
@@ -278,15 +267,15 @@ export default function ProfilePage() {
               <div className="flex space-x-4">
                 <button
                   onClick={handleCheckIn}
-                  disabled={isCheckedIn || isSubmitting}
-                  className="w-full px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                  disabled={userProfile.isCheckedIn || isSubmitting}
+                  className="w-full px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Check In
                 </button>
                 <button
                   onClick={handleCheckOut}
-                  disabled={!isCheckedIn || isSubmitting}
-                  className="w-full px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400"
+                  disabled={!userProfile.isCheckedIn || isSubmitting}
+                  className="w-full px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Check Out
                 </button>

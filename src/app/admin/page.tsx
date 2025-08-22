@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { auth, firestore } from '@/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 // --- Type Definitions ---
@@ -31,14 +31,24 @@ type AttendanceRecord = {
   checkOutTime: Timestamp | null;
 };
 
+type ManagedUser = {
+    id: string;
+    name: string;
+    saeId: string;
+    role: 'student' | 'admin' | 'super-admin';
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [labStatus, setLabStatus] = useState<LabStatus>({ isLabOpen: false, currentlyCheckedIn: [] });
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [allUsers, setAllUsers] = useState<ManagedUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   // --- Main Authentication useEffect ---
   useEffect(() => {
@@ -48,8 +58,9 @@ export default function AdminPage() {
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
-          const userProfile = userDoc.data() as UserProfile;
-          if (userProfile.role === 'admin' || userProfile.role === 'super-admin') {
+          const profile = userDoc.data() as UserProfile;
+          setUserProfile(profile);
+          if (profile.role === 'admin' || profile.role === 'super-admin') {
             setUser(currentUser);
           } else {
             alert("Access Denied. You are not an admin.");
@@ -67,41 +78,61 @@ export default function AdminPage() {
     return () => unsubscribeAuth();
   }, [router]);
 
-  // --- Real-time Lab Status useEffect ---
+  // --- Real-time Listeners and Data Fetchers ---
   useEffect(() => {
-    if (user) {
-      const labStatusRef = doc(firestore, 'labStatus', 'current');
-      const unsubscribeStatus = onSnapshot(labStatusRef, (doc) => {
-        if (doc.exists()) {
-          setLabStatus(doc.data() as LabStatus);
-        } else {
-          setLabStatus({ isLabOpen: false, currentlyCheckedIn: [] });
-        }
-      });
-      return () => unsubscribeStatus();
+    if (!user) return;
+
+    // Lab Status Listener
+    const labStatusRef = doc(firestore, 'labStatus', 'current');
+    const unsubscribeStatus = onSnapshot(labStatusRef, (doc) => {
+      setLabStatus(doc.exists() ? (doc.data() as LabStatus) : { isLabOpen: false, currentlyCheckedIn: [] });
+    });
+
+    // Attendance History Listener
+    setHistoryLoading(true);
+    const historyQuery = query(collection(firestore, 'attendance'), where('date', '==', selectedDate));
+    const unsubscribeHistory = onSnapshot(historyQuery, (snapshot) => {
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+      setAttendanceHistory(records);
+      setHistoryLoading(false);
+    });
+
+    // Fetch all users if super-admin
+    if (userProfile?.role === 'super-admin') {
+        fetchAllUsers();
     }
-  }, [user]);
 
-  // --- Real-time Attendance History useEffect ---
-  useEffect(() => {
-    if (user) {
-      setHistoryLoading(true);
-      const historyQuery = query(
-        collection(firestore, 'attendance'),
-        where('date', '==', selectedDate)
-      );
+    return () => {
+      unsubscribeStatus();
+      unsubscribeHistory();
+    };
+  }, [user, selectedDate, userProfile]);
 
-      // Set up the real-time listener
-      const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
-        const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
-        setAttendanceHistory(records);
-        setHistoryLoading(false);
-      });
+  const fetchAllUsers = async () => {
+    setUsersLoading(true);
+    const usersQuery = query(collection(firestore, 'users'));
+    const querySnapshot = await getDocs(usersQuery);
+    const usersList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ManagedUser));
+    setAllUsers(usersList);
+    setUsersLoading(false);
+  };
 
-      // Cleanup the listener when the date changes or component unmounts
-      return () => unsubscribeHistory();
+  const handleRoleChange = async (targetUserId: string, newRole: 'admin' | 'student') => {
+    if (userProfile?.role !== 'super-admin') {
+        alert("You do not have permission to perform this action.");
+        return;
     }
-  }, [user, selectedDate]);
+    try {
+        const userDocRef = doc(firestore, 'users', targetUserId);
+        await updateDoc(userDocRef, { role: newRole });
+        // Refresh the user list to show the change
+        fetchAllUsers();
+        alert("User role updated successfully.");
+    } catch (error) {
+        console.error("Error updating user role:", error);
+        alert("Failed to update user role.");
+    }
+  };
 
 
   if (loading) {
@@ -153,8 +184,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Attendance History Card */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-2xl font-semibold text-gray-700 mb-4">Attendance History</h2>
             <div className="flex items-center space-x-4 mb-4">
               <input 
@@ -195,6 +225,46 @@ export default function AdminPage() {
               </table>
             </div>
           </div>
+
+          {/* User Management Card (Super Admin Only) */}
+          {userProfile?.role === 'super-admin' && (
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">User Management</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SAE ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {usersLoading ? (
+                      <tr><td colSpan={4} className="text-center py-4">Loading users...</td></tr>
+                    ) : (
+                      allUsers.map(managedUser => (
+                        <tr key={managedUser.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.saeId}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.role}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            {managedUser.role === 'student' && (
+                              <button onClick={() => handleRoleChange(managedUser.id, 'admin')} className="text-indigo-600 hover:text-indigo-900">Make Admin</button>
+                            )}
+                            {managedUser.role === 'admin' && (
+                              <button onClick={() => handleRoleChange(managedUser.id, 'student')} className="text-red-600 hover:text-red-900">Make Student</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     );
