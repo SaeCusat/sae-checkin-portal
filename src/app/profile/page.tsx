@@ -7,15 +7,7 @@ import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import {
   doc,
   getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
-  Timestamp,
   onSnapshot,
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -34,7 +26,7 @@ type UserProfile = {
   mobileNumber: string;
   guardianNumber: string;
   photoUrl: string;
-  isCheckedIn?: boolean; // New field for live status
+  isCheckedIn?: boolean;
 };
 
 export default function ProfilePage() {
@@ -59,7 +51,6 @@ export default function ProfilePage() {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Set up a real-time listener for the user's profile
         const userDocRef = doc(firestore, 'users', currentUser.uid);
         const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
           if (doc.exists()) {
@@ -74,102 +65,18 @@ export default function ProfilePage() {
             });
           } else {
             console.error("No profile data found for this user.");
-            signOut(auth); // Log out if profile doesn't exist
+            signOut(auth);
           }
           setLoading(false);
         });
-        return () => unsubscribeProfile(); // Cleanup profile listener
+        return () => unsubscribeProfile();
       } else {
         router.push('/');
         setLoading(false);
       }
     });
-
-    return () => unsubscribeAuth(); // Cleanup auth listener
+    return () => unsubscribeAuth();
   }, [router]);
-
-  // --- Check-in/Check-out Handlers (Updated Logic) ---
-  const handleCheckIn = async () => {
-    if (!user || !userProfile) return;
-    setIsSubmitting(true);
-    try {
-      const checkInTime = Timestamp.now();
-      const attendanceRef = doc(collection(firestore, 'attendance'));
-      const userDocRef = doc(firestore, 'users', user.uid);
-
-      // Create attendance record
-      await setDoc(attendanceRef, {
-        userId: user.uid,
-        userName: userProfile.name,
-        saeId: userProfile.saeId,
-        checkInTime: checkInTime,
-        checkOutTime: null,
-        date: new Date().toISOString().split('T')[0],
-      });
-
-      // Update user's status
-      await updateDoc(userDocRef, { isCheckedIn: true });
-
-      // Update lab status
-      const labStatusRef = doc(firestore, 'labStatus', 'current');
-      await setDoc(labStatusRef, {
-          isLabOpen: true,
-          currentlyCheckedIn: arrayUnion({ id: user.uid, name: userProfile.name }),
-        }, { merge: true }
-      );
-
-      alert('Checked in successfully!');
-    } catch (error) {
-      console.error("Error checking in:", error);
-      alert('Failed to check in. Please try again.');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleCheckOut = async () => {
-    if (!user || !userProfile) return;
-    setIsSubmitting(true);
-    try {
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const attendanceQuery = query(
-        collection(firestore, 'attendance'),
-        where('userId', '==', user.uid),
-        where('checkOutTime', '==', null)
-      );
-      const querySnapshot = await getDocs(attendanceQuery);
-
-      if (!querySnapshot.empty) {
-        const attendanceDocRef = querySnapshot.docs[0].ref;
-        await updateDoc(attendanceDocRef, { checkOutTime: Timestamp.now() });
-
-        // Update user's status
-        await updateDoc(userDocRef, { isCheckedIn: false });
-
-        // Update lab status
-        const labStatusRef = doc(firestore, 'labStatus', 'current');
-        await updateDoc(labStatusRef, {
-          currentlyCheckedIn: arrayRemove({ id: user.uid, name: userProfile.name }),
-        });
-        
-        const labStatusDoc = await getDoc(labStatusRef);
-        const remainingUsers = labStatusDoc.data()?.currentlyCheckedIn || [];
-        if (remainingUsers.length === 0) {
-          await updateDoc(labStatusRef, { isLabOpen: false });
-          alert('You are the last person out! Please ensure the lab is locked.');
-        } else {
-          alert('Checked out successfully!');
-        }
-      } else {
-        // If something is out of sync, correct the user's status
-        await updateDoc(userDocRef, { isCheckedIn: false });
-        throw new Error("Could not find an open check-in record.");
-      }
-    } catch (error) {
-      console.error("Error checking out:", error);
-      alert('Failed to check out. Please try again.');
-    }
-    setIsSubmitting(false);
-  };
   
   // --- Edit Profile Handlers ---
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -189,16 +96,14 @@ export default function ProfilePage() {
             mobileNumber: formData.mobileNumber,
             guardianNumber: formData.guardianNumber,
             bloodGroup: formData.bloodGroup,
-            photoUrl: formData.photoUrl, // Save the new URL
+            photoUrl: formData.photoUrl,
         });
         
-        // The real-time listener will automatically update the profile, no need to fetch again
         alert("Profile updated successfully!");
         setIsModalOpen(false);
-
     } catch (error) {
         console.error("Error updating profile:", error);
-        alert("Failed to update profile. Please try again.");
+        alert("Failed to update profile.");
     }
     setIsSubmitting(false);
   };
@@ -221,17 +126,23 @@ export default function ProfilePage() {
             <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-800 p-6 text-white shadow-lg">
               <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold">{userProfile.club}</h2>
-                <span className="font-semibold">{userProfile.role.toUpperCase()}</span>
+                <div className="text-right">
+                  <span className="font-semibold">{userProfile.role.toUpperCase()}</span>
+                  <div className={`mt-1 flex items-center justify-end space-x-2 text-xs font-medium px-2 py-1 rounded-full ${userProfile.isCheckedIn ? 'bg-green-400' : 'bg-red-400'}`}>
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
+                    <span>{userProfile.isCheckedIn ? 'IN LAB' : 'NOT IN LAB'}</span>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center space-x-4 my-6">
                 <div className="relative">
                   <Image
-                    src={userProfile.photoUrl || 'https://i.pravatar.cc/150'} // Fallback image
+                    src={userProfile.photoUrl || 'https://i.pravatar.cc/150'}
                     alt="Profile Photo"
                     width={80}
                     height={80}
                     className="rounded-full ring-4 ring-white object-cover"
-                    onError={(e) => { e.currentTarget.src = 'https://i.pravatar.cc/150'; }} // Handle broken links
+                    onError={(e) => { e.currentTarget.src = 'https://i.pravatar.cc/150'; }}
                   />
                 </div>
                 <div>
@@ -242,8 +153,10 @@ export default function ProfilePage() {
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <p><strong>Branch:</strong> {userProfile.branch}</p>
                 <p><strong>Semester:</strong> {userProfile.semester}</p>
-                <p><strong>Email:</strong> {userProfile.email}</p>
+                <p><strong>Blood Group:</strong> {userProfile.bloodGroup}</p>
                 <p><strong>Mobile:</strong> {userProfile.mobileNumber}</p>
+                <p><strong>Guardian:</strong> {userProfile.guardianNumber}</p>
+                <p><strong>Email:</strong> {userProfile.email}</p>
               </div>
             </div>
 
@@ -261,23 +174,6 @@ export default function ProfilePage() {
                   className="w-full px-4 py-3 font-bold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                 >
                   Sign Out
-                </button>
-              </div>
-              <h3 className="text-xl font-bold text-center pt-4">Lab Attendance</h3>
-              <div className="flex space-x-4">
-                <button
-                  onClick={handleCheckIn}
-                  disabled={userProfile.isCheckedIn || isSubmitting}
-                  className="w-full px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Check In
-                </button>
-                <button
-                  onClick={handleCheckOut}
-                  disabled={!userProfile.isCheckedIn || isSubmitting}
-                  className="w-full px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Check Out
                 </button>
               </div>
             </div>
