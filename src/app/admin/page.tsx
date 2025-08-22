@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { auth, firestore } from '@/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 // --- Type Definitions ---
@@ -23,11 +23,22 @@ type LabStatus = {
   currentlyCheckedIn: CheckedInUser[];
 };
 
+type AttendanceRecord = {
+  id: string;
+  userName: string;
+  saeId: string;
+  checkInTime: Timestamp;
+  checkOutTime: Timestamp | null;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [labStatus, setLabStatus] = useState<LabStatus>({ isLabOpen: false, currentlyCheckedIn: [] });
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // --- Main Authentication useEffect ---
   useEffect(() => {
@@ -58,24 +69,40 @@ export default function AdminPage() {
 
   // --- Real-time Lab Status useEffect ---
   useEffect(() => {
-    // This effect runs only when a user is confirmed to be an admin
     if (user) {
       const labStatusRef = doc(firestore, 'labStatus', 'current');
-      
-      // onSnapshot creates a real-time listener
       const unsubscribeStatus = onSnapshot(labStatusRef, (doc) => {
         if (doc.exists()) {
           setLabStatus(doc.data() as LabStatus);
         } else {
-          // If the document doesn't exist, set a default state
           setLabStatus({ isLabOpen: false, currentlyCheckedIn: [] });
         }
       });
-
-      // Cleanup the listener when the component unmounts
       return () => unsubscribeStatus();
     }
-  }, [user]); // Dependency array ensures this runs when the user state is set
+  }, [user]);
+
+  // --- Real-time Attendance History useEffect ---
+  useEffect(() => {
+    if (user) {
+      setHistoryLoading(true);
+      const historyQuery = query(
+        collection(firestore, 'attendance'),
+        where('date', '==', selectedDate)
+      );
+
+      // Set up the real-time listener
+      const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
+        const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+        setAttendanceHistory(records);
+        setHistoryLoading(false);
+      });
+
+      // Cleanup the listener when the date changes or component unmounts
+      return () => unsubscribeHistory();
+    }
+  }, [user, selectedDate]);
+
 
   if (loading) {
     return <p className="text-center mt-10">Loading Admin Dashboard...</p>;
@@ -95,9 +122,7 @@ export default function AdminPage() {
             </button>
           </div>
           
-          {/* Grid for Dashboard Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Live Status Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-2xl font-semibold text-gray-700">Live Status</h2>
               <div className="mt-4 flex items-center">
@@ -110,10 +135,9 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Currently In Lab Card */}
             <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-2xl font-semibold text-gray-700">Currently In Lab</h2>
-              <div className="mt-4">
+              <div className="mt-4 h-40 overflow-y-auto">
                 {labStatus.currentlyCheckedIn.length > 0 ? (
                   <ul className="space-y-3">
                     {labStatus.currentlyCheckedIn.map((member) => (
@@ -126,6 +150,49 @@ export default function AdminPage() {
                   <p className="text-gray-500">No one is currently checked in.</p>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Attendance History Card */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Attendance History</h2>
+            <div className="flex items-center space-x-4 mb-4">
+              <input 
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SAE ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {historyLoading ? (
+                    <tr><td colSpan={4} className="text-center py-4">Loading records...</td></tr>
+                  ) : attendanceHistory.length > 0 ? (
+                    attendanceHistory.map(record => (
+                      <tr key={record.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">{record.userName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{record.saeId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{record.checkInTime.toDate().toLocaleTimeString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {record.checkOutTime ? record.checkOutTime.toDate().toLocaleTimeString() : 'Still in lab'}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={4} className="text-center py-4 text-gray-500">No records found for this date.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
