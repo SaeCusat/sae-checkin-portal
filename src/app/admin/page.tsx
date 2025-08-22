@@ -1,7 +1,7 @@
 // src/app/admin/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
 import { auth, firestore } from '@/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, updateDoc } from 'firebase/firestore';
@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 
 // --- Type Definitions ---
 type UserProfile = {
-  role: string;
+  permissionRole: string;
   name: string;
 };
 
@@ -35,7 +35,8 @@ type ManagedUser = {
     id: string;
     name: string;
     saeId: string;
-    role: 'student' | 'admin' | 'super-admin';
+    permissionRole: 'student' | 'admin' | 'super-admin';
+    displayTitle: string;
 };
 
 export default function AdminPage() {
@@ -50,6 +51,11 @@ export default function AdminPage() {
   const [allUsers, setAllUsers] = useState<ManagedUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
+  // --- State for Edit User Modal ---
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [userFormData, setUserFormData] = useState({ permissionRole: '', displayTitle: '' });
+
   // --- Main Authentication useEffect ---
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -60,7 +66,7 @@ export default function AdminPage() {
         if (userDoc.exists()) {
           const profile = userDoc.data() as UserProfile;
           setUserProfile(profile);
-          if (profile.role === 'admin' || profile.role === 'super-admin') {
+          if (profile.permissionRole === 'admin' || profile.permissionRole === 'super-admin') {
             setUser(currentUser);
           } else {
             alert("Access Denied. You are not an admin.");
@@ -98,7 +104,7 @@ export default function AdminPage() {
     });
 
     // Fetch all users if super-admin
-    if (userProfile?.role === 'super-admin') {
+    if (userProfile?.permissionRole === 'super-admin') {
         fetchAllUsers();
     }
 
@@ -117,23 +123,37 @@ export default function AdminPage() {
     setUsersLoading(false);
   };
 
-  const handleRoleChange = async (targetUserId: string, newRole: 'admin' | 'student') => {
-    if (userProfile?.role !== 'super-admin') {
+  // --- User Management Handlers ---
+  const openEditModal = (userToEdit: ManagedUser) => {
+    setEditingUser(userToEdit);
+    setUserFormData({
+        permissionRole: userToEdit.permissionRole,
+        displayTitle: userToEdit.displayTitle || '', // Handle cases where title might be missing
+    });
+    setIsUserModalOpen(true);
+  };
+
+  const handleUserUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (userProfile?.permissionRole !== 'super-admin' || !editingUser) {
         alert("You do not have permission to perform this action.");
         return;
     }
     try {
-        const userDocRef = doc(firestore, 'users', targetUserId);
-        await updateDoc(userDocRef, { role: newRole });
-        // Refresh the user list to show the change
+        const userDocRef = doc(firestore, 'users', editingUser.id);
+        await updateDoc(userDocRef, { 
+            permissionRole: userFormData.permissionRole,
+            displayTitle: userFormData.displayTitle,
+        });
         fetchAllUsers();
-        alert("User role updated successfully.");
+        alert("User updated successfully.");
+        setIsUserModalOpen(false);
+        setEditingUser(null);
     } catch (error) {
-        console.error("Error updating user role:", error);
-        alert("Failed to update user role.");
+        console.error("Error updating user:", error);
+        alert("Failed to update user.");
     }
   };
-
 
   if (loading) {
     return <p className="text-center mt-10">Loading Admin Dashboard...</p>;
@@ -141,6 +161,7 @@ export default function AdminPage() {
 
   if (user) {
     return (
+      <>
       <main className="min-h-screen bg-gray-100 p-4 sm:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
@@ -227,7 +248,7 @@ export default function AdminPage() {
           </div>
 
           {/* User Management Card (Super Admin Only) */}
-          {userProfile?.role === 'super-admin' && (
+          {userProfile?.permissionRole === 'super-admin' && (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-2xl font-semibold text-gray-700 mb-4">User Management</h2>
               <div className="overflow-x-auto">
@@ -235,8 +256,8 @@ export default function AdminPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SAE ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Display Title</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permission Role</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
@@ -247,15 +268,10 @@ export default function AdminPage() {
                       allUsers.map(managedUser => (
                         <tr key={managedUser.id}>
                           <td className="px-6 py-4 whitespace-nowrap">{managedUser.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.saeId}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.role}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            {managedUser.role === 'student' && (
-                              <button onClick={() => handleRoleChange(managedUser.id, 'admin')} className="text-indigo-600 hover:text-indigo-900">Make Admin</button>
-                            )}
-                            {managedUser.role === 'admin' && (
-                              <button onClick={() => handleRoleChange(managedUser.id, 'student')} className="text-red-600 hover:text-red-900">Make Student</button>
-                            )}
+                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.displayTitle}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{managedUser.permissionRole}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onClick={() => openEditModal(managedUser)} className="text-indigo-600 hover:text-indigo-900">Edit</button>
                           </td>
                         </tr>
                       ))
@@ -267,6 +283,34 @@ export default function AdminPage() {
           )}
         </div>
       </main>
+
+      {/* Edit User Modal */}
+      {isUserModalOpen && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-6">Edit User: {editingUser.name}</h2>
+            <form onSubmit={handleUserUpdate} className="space-y-4">
+              <div>
+                <label htmlFor="displayTitle" className="block text-sm font-medium text-gray-700">Display Title</label>
+                <input type="text" name="displayTitle" id="displayTitle" value={userFormData.displayTitle} onChange={(e) => setUserFormData({...userFormData, displayTitle: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+              </div>
+              <div>
+                <label htmlFor="permissionRole" className="block text-sm font-medium text-gray-700">Permission Role</label>
+                <select name="permissionRole" id="permissionRole" value={userFormData.permissionRole} onChange={(e) => setUserFormData({...userFormData, permissionRole: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required>
+                    <option value="student">Student</option>
+                    <option value="admin">Admin</option>
+                    <option value="super-admin">Super Admin</option>
+                </select>
+              </div>
+              <div className="flex justify-end space-x-4 pt-4">
+                <button type="button" onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 

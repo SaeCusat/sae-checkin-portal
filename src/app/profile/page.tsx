@@ -16,7 +16,8 @@ import Image from 'next/image';
 // --- Type Definitions ---
 type UserProfile = {
   saeId: string;
-  role: string;
+  permissionRole: string;
+  displayTitle: string;
   name: string;
   branch: string;
   club: string;
@@ -127,7 +128,7 @@ export default function ProfilePage() {
               <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold">{userProfile.club}</h2>
                 <div className="text-right">
-                  <span className="font-semibold">{userProfile.role.toUpperCase()}</span>
+                  <span className="font-semibold">{(userProfile.displayTitle || '').toUpperCase()}</span>
                   <div className={`mt-1 flex items-center justify-end space-x-2 text-xs font-medium px-2 py-1 rounded-full ${userProfile.isCheckedIn ? 'bg-green-400' : 'bg-red-400'}`}>
                     <div className="w-2 h-2 rounded-full bg-white"></div>
                     <span>{userProfile.isCheckedIn ? 'IN LAB' : 'NOT IN LAB'}</span>
@@ -162,6 +163,15 @@ export default function ProfilePage() {
 
             {/* Action Buttons */}
             <div className="p-6 bg-white rounded-lg shadow-md space-y-4">
+              {/* --- CONDITIONAL ADMIN BUTTON --- */}
+              {(userProfile.permissionRole === 'admin' || userProfile.permissionRole === 'super-admin') && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="w-full px-4 py-3 font-bold text-white bg-purple-600 rounded-md hover:bg-purple-700"
+                >
+                  Go to Admin Dashboard
+                </button>
+              )}
               <div className="flex space-x-4">
                 <button
                   onClick={() => setIsModalOpen(true)}
