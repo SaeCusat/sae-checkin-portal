@@ -1,7 +1,7 @@
 // src/app/profile/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
 import { auth, firestore } from '@/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
@@ -43,15 +43,21 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // --- State for Edit Profile Modal ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    mobileNumber: '',
+    guardianNumber: '',
+    bloodGroup: '',
+    photoUrl: '', // Field for the image URL
+  });
+
   // --- Main useEffect Hook ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // --- DIAGNOSTIC LOG ---
-        console.log("Auth State Changed. Logged-in User UID:", currentUser.uid);
-        
         setUser(currentUser);
-        // Fetch profile first, THEN check status. This is the fix.
         const profile = await fetchUserProfile(currentUser);
         if (profile) {
           await checkUserStatus(currentUser.uid);
@@ -73,15 +79,20 @@ export default function ProfilePage() {
       if (userDoc.exists()) {
         const profileData = userDoc.data() as UserProfile;
         setUserProfile(profileData);
-        return profileData; // Return data on success
-      } else {
-        console.error("Firestore document not found for user:", currentUser.uid);
-        return null; // Return null on failure
+        // Pre-fill form data when profile is loaded
+        setFormData({
+            name: profileData.name,
+            mobileNumber: profileData.mobileNumber,
+            guardianNumber: profileData.guardianNumber,
+            bloodGroup: profileData.bloodGroup,
+            photoUrl: profileData.photoUrl,
+        });
+        return profileData;
       }
+      return null;
     } catch (error) {
-        console.error("Error fetching user profile:", error);
-        // This is where the permission error will be caught
-        return null;
+      console.error("Error fetching user profile:", error);
+      return null;
     }
   };
 
@@ -173,6 +184,39 @@ export default function ProfilePage() {
     }
     setIsSubmitting(false);
   };
+  
+  // --- Edit Profile Handlers ---
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsSubmitting(true);
+    
+    try {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userDocRef, {
+            name: formData.name,
+            mobileNumber: formData.mobileNumber,
+            guardianNumber: formData.guardianNumber,
+            bloodGroup: formData.bloodGroup,
+            photoUrl: formData.photoUrl, // Save the new URL
+        });
+        
+        await fetchUserProfile(user);
+        alert("Profile updated successfully!");
+        setIsModalOpen(false);
+
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        alert("Failed to update profile. Please try again.");
+    }
+    setIsSubmitting(false);
+  };
+
 
   // --- Render Logic ---
   if (loading) {
@@ -181,65 +225,111 @@ export default function ProfilePage() {
 
   if (user && userProfile) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-        <div className="w-full max-w-lg space-y-6">
-          {/* Virtual ID Card */}
-          <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-800 p-6 text-white shadow-lg">
-            <div className="flex justify-between items-start">
-              <h2 className="text-2xl font-bold">{userProfile.club}</h2>
-              <span className="font-semibold">{userProfile.role.toUpperCase()}</span>
-            </div>
-            <div className="flex items-center space-x-4 my-6">
-              <div className="relative">
-                <Image
-                  src={userProfile.photoUrl}
-                  alt="Profile Photo"
-                  width={80}
-                  height={80}
-                  className="rounded-full ring-4 ring-white"
-                />
+      <>
+        <main className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+          <div className="w-full max-w-lg space-y-6">
+            {/* Virtual ID Card */}
+            <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-800 p-6 text-white shadow-lg">
+              <div className="flex justify-between items-start">
+                <h2 className="text-2xl font-bold">{userProfile.club}</h2>
+                <span className="font-semibold">{userProfile.role.toUpperCase()}</span>
               </div>
-              <div>
-                <h3 className="text-xl font-semibold">{userProfile.name}</h3>
-                <p className="text-sm opacity-90">{userProfile.saeId}</p>
+              <div className="flex items-center space-x-4 my-6">
+                <div className="relative">
+                  <Image
+                    src={userProfile.photoUrl || 'https://i.pravatar.cc/150'} // Fallback image
+                    alt="Profile Photo"
+                    width={80}
+                    height={80}
+                    className="rounded-full ring-4 ring-white object-cover"
+                    onError={(e) => { e.currentTarget.src = 'https://i.pravatar.cc/150'; }} // Handle broken links
+                  />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">{userProfile.name}</h3>
+                  <p className="text-sm opacity-90">{userProfile.saeId}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <p><strong>Branch:</strong> {userProfile.branch}</p>
+                <p><strong>Semester:</strong> {userProfile.semester}</p>
+                <p><strong>Email:</strong> {userProfile.email}</p>
+                <p><strong>Mobile:</strong> {userProfile.mobileNumber}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <p><strong>Branch:</strong> {userProfile.branch}</p>
-              <p><strong>Semester:</strong> {userProfile.semester}</p>
-              <p><strong>Email:</strong> {userProfile.email}</p>
-              <p><strong>Mobile:</strong> {userProfile.mobileNumber}</p>
-            </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="p-6 bg-white rounded-lg shadow-md space-y-4">
-            <h3 className="text-xl font-bold text-center">Lab Attendance</h3>
-            <div className="flex space-x-4">
-              <button
-                onClick={handleCheckIn}
-                disabled={isCheckedIn || isSubmitting}
-                className="w-full px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                Check In
-              </button>
-              <button
-                onClick={handleCheckOut}
-                disabled={!isCheckedIn || isSubmitting}
-                className="w-full px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                Check Out
-              </button>
+            {/* Action Buttons */}
+            <div className="p-6 bg-white rounded-lg shadow-md space-y-4">
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="w-full px-4 py-3 font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => auth.signOut()}
+                  className="w-full px-4 py-3 font-bold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Sign Out
+                </button>
+              </div>
+              <h3 className="text-xl font-bold text-center pt-4">Lab Attendance</h3>
+              <div className="flex space-x-4">
+                <button
+                  onClick={handleCheckIn}
+                  disabled={isCheckedIn || isSubmitting}
+                  className="w-full px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                >
+                  Check In
+                </button>
+                <button
+                  onClick={handleCheckOut}
+                  disabled={!isCheckedIn || isSubmitting}
+                  className="w-full px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400"
+                >
+                  Check Out
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => auth.signOut()}
-              className="w-full mt-4 px-4 py-2 font-bold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-            >
-              Sign Out
-            </button>
           </div>
-        </div>
-      </main>
+        </main>
+
+        {/* Edit Profile Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-8 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-6">Edit Your Profile</h2>
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
+                <div>
+                  <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-700">Photo URL</label>
+                  <input type="url" name="photoUrl" id="photoUrl" value={formData.photoUrl} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/photo.jpg" required />
+                </div>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <input type="text" name="name" id="name" value={formData.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                </div>
+                <div>
+                  <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700">Mobile Number</label>
+                  <input type="tel" name="mobileNumber" id="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                </div>
+                <div>
+                  <label htmlFor="guardianNumber" className="block text-sm font-medium text-gray-700">Guardian's Number</label>
+                  <input type="tel" name="guardianNumber" id="guardianNumber" value={formData.guardianNumber} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                </div>
+                <div>
+                  <label htmlFor="bloodGroup" className="block text-sm font-medium text-gray-700">Blood Group</label>
+                  <input type="text" name="bloodGroup" id="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                </div>
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
