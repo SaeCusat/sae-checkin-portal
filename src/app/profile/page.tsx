@@ -8,6 +8,19 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
+// --- Helper function to convert Google Drive links ---
+function convertGoogleDriveUrl(url: string): string {
+  if (!url || !url.includes('drive.google.com')) {
+    return url; // Return original if not a Google Drive link
+  }
+  const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+  if (match && match[1]) {
+    const fileId = match[1];
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  return url;
+}
+
 // --- Type and Constant Definitions ---
 const TEAM_OPTIONS = [
   "TARUSA", "YETI", "ASTRON ENDURANCE", "MARUTSAKHA", 
@@ -30,7 +43,7 @@ type UserProfile = {
   displayTitle: string;
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
-  team: string; // New team field
+  team: string;
 };
 
 export default function ProfilePage() {
@@ -39,7 +52,6 @@ export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -47,7 +59,7 @@ export default function ProfilePage() {
     guardianNumber: '',
     bloodGroup: '',
     photoUrl: '',
-    team: '', // Added team field to form data
+    team: '',
   });
 
   useEffect(() => {
@@ -69,7 +81,6 @@ export default function ProfilePage() {
         if (doc.exists()) {
           const data = doc.data() as Omit<UserProfile, 'id'>;
           setUserProfile({ id: doc.id, ...data });
-          // Update form data with the latest from the database, including the team
           setFormData({
             name: data.name || '',
             mobileNumber: data.mobileNumber || '',
@@ -79,8 +90,7 @@ export default function ProfilePage() {
             team: data.team || '',
           });
         } else {
-          console.error("No profile data found for this user.");
-          // If no profile, sign out to prevent being stuck
+          console.error("No profile data found for this user. Signing out.");
           auth.signOut();
         }
       });
@@ -92,9 +102,14 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!user) return;
     try {
+      // Use the converter for the photo URL before saving
+      const correctedFormData = {
+        ...formData,
+        photoUrl: convertGoogleDriveUrl(formData.photoUrl),
+      };
+
       const userDocRef = doc(firestore, 'users', user.uid);
-      // The formData state already includes the team, so this saves it correctly
-      await updateDoc(userDocRef, formData);
+      await updateDoc(userDocRef, correctedFormData);
       alert('Profile updated successfully!');
       setIsEditModalOpen(false);
     } catch (error) {
@@ -113,7 +128,6 @@ export default function ProfilePage() {
   
   const isAdmin = userProfile.permissionRole === 'admin' || userProfile.permissionRole === 'super-admin';
 
-  // Helper component for perfectly aligned details
   const DetailRow = ({ label, value }: { label: string; value: string }) => (
     <div className="flex">
       <span className="w-28 font-semibold opacity-70 flex-shrink-0 flex justify-between pr-2">
@@ -128,7 +142,6 @@ export default function ProfilePage() {
     <>
       <main className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
         <div className="w-full max-w-md mx-auto">
-          {/* Redesigned Virtual ID Card */}
           <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-2xl">
             <div className="p-6">
               <div className="flex justify-between items-center">
@@ -173,7 +186,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Highlighted Team Section */}
             {userProfile.team && (
               <div className="bg-white/10 rounded-b-2xl px-6 py-3 text-center">
                 <span className="text-xs font-semibold tracking-widest opacity-70">TEAM</span>
@@ -182,10 +194,9 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Action Buttons */}
           <div className="mt-6 p-4 bg-white rounded-lg shadow-md space-y-3">
              {isAdmin && (
-                <Link href="/admin" className="w-full text-center block px-4 py-3 font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:opacity-90 transition-opacity">
+                <Link href="/admin" className="w-full text-center block px-4 py-3 font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:opacity-90 transition-opacity shadow-lg hover:shadow-xl">
                   Admin Dashboard
                 </Link>
              )}
@@ -199,7 +210,6 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* Edit Profile Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <form onSubmit={handleUpdateProfile} className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl space-y-4">
@@ -209,7 +219,7 @@ export default function ProfilePage() {
               <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
             </div>
              <div>
-              <label className="block text-sm font-medium text-gray-700">Team Name</label>
+              <label className="block text-sm font-medium text-gray-700">Team</label>
               <select value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2">
                   {TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}
               </select>
@@ -228,7 +238,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Photo URL</label>
-              <input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
+              <input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2" placeholder="e.g., Google Drive public link"/>
             </div>
             <div className="flex justify-end space-x-4 pt-4">
               <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>

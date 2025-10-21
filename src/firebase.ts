@@ -1,4 +1,3 @@
-// src/firebase.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -12,8 +11,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const firestore = getFirestore(app);
-const auth = getAuth(app);
+// Check if all required environment variables are present
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error("Firebase configuration is missing or incomplete. Please check your .env.local file.");
+}
 
-export { app, firestore, auth };
+// Initialize Firebase
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
+
+const auth = getAuth(app);
+const firestore = getFirestore(app);
+
+export { app, auth, firestore };
