@@ -6,8 +6,13 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import Link from 'next/link';
 
+// Branch, Semester, and NEW Team options
 const BRANCH_OPTIONS = ["ME", "EEE", "ECE", "SF", "CS", "IT", "CE"];
 const SEMESTER_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+const TEAM_OPTIONS = [
+  "TARUSA", "YETI", "ASTRON ENDURANCE", "MARUTSAKHA", 
+  "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
+];
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -15,13 +20,14 @@ export default function SignUpPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    branch: 'ME',
-    semester: '1',
+    branch: 'ME', // Default value
+    semester: '1', // Default value
     bloodGroup: '',
     mobileNumber: '',
     guardianNumber: '',
     photoUrl: '',
-    joinYear: new Date().getFullYear().toString(),
+    joinYear: new Date().getFullYear().toString(), // Default to current year
+    team: TEAM_OPTIONS[0], // Default to the first team
   });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -62,6 +68,7 @@ export default function SignUpPage() {
         guardianNumber: formData.guardianNumber,
         joinYear: formData.joinYear.slice(-2), // Store as '25' for 2025
         photoUrl: formData.photoUrl || `https://i.pravatar.cc/150?u=${formData.email}`,
+        team: formData.team, // Save selected team
         permissionRole: 'student',
         displayTitle: 'Member',
         isCheckedIn: false,
@@ -107,7 +114,12 @@ export default function SignUpPage() {
               {BRANCH_OPTIONS.map(branch => <option key={branch} value={branch}>{branch}</option>)}
             </select>
             <select name="semester" value={formData.semester} required onChange={handleChange} className="input-style">
-              {SEMESTER_OPTIONS.map(sem => <option key={sem} value={sem}>Semester {sem}</option>)}
+              {SEMESTER_OPTIONS.map(sem => <option key={sem} value={`S${sem}`}>Semester {sem}</option>)}
+            </select>
+            
+            {/* --- NEW: Team Dropdown --- */}
+            <select name="team" value={formData.team} required onChange={handleChange} className="input-style">
+              {TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}
             </select>
             
             <input name="joinYear" type="number" placeholder="Year of Joining (e.g., 2025)" required onChange={handleChange} value={formData.joinYear} className="input-style" />
@@ -138,4 +150,3 @@ export default function SignUpPage() {
     </main>
   );
 }
-

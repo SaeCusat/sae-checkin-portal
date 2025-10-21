@@ -3,12 +3,17 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { auth, firestore } from '../../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// --- Type Definitions ---
+// --- Type and Constant Definitions ---
+const TEAM_OPTIONS = [
+  "TARUSA", "YETI", "ASTRON ENDURANCE", "MARUTSAKHA", 
+  "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
+];
+
 type UserProfile = {
   id: string;
   name: string;
@@ -25,6 +30,7 @@ type UserProfile = {
   displayTitle: string;
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
+  team: string; // New team field
 };
 
 export default function ProfilePage() {
@@ -41,6 +47,7 @@ export default function ProfilePage() {
     guardianNumber: '',
     bloodGroup: '',
     photoUrl: '',
+    team: '', // Added team field to form data
   });
 
   useEffect(() => {
@@ -62,15 +69,19 @@ export default function ProfilePage() {
         if (doc.exists()) {
           const data = doc.data() as Omit<UserProfile, 'id'>;
           setUserProfile({ id: doc.id, ...data });
+          // Update form data with the latest from the database, including the team
           setFormData({
             name: data.name || '',
             mobileNumber: data.mobileNumber || '',
             guardianNumber: data.guardianNumber || '',
             bloodGroup: data.bloodGroup || '',
             photoUrl: data.photoUrl || '',
+            team: data.team || '',
           });
         } else {
           console.error("No profile data found for this user.");
+          // If no profile, sign out to prevent being stuck
+          auth.signOut();
         }
       });
       return () => unsubscribe();
@@ -82,6 +93,7 @@ export default function ProfilePage() {
     if (!user) return;
     try {
       const userDocRef = doc(firestore, 'users', user.uid);
+      // The formData state already includes the team, so this saves it correctly
       await updateDoc(userDocRef, formData);
       alert('Profile updated successfully!');
       setIsEditModalOpen(false);
@@ -92,7 +104,11 @@ export default function ProfilePage() {
   };
 
   if (loading || !userProfile) {
-    return <div className="flex justify-center items-center min-h-screen"><p>Loading Profile...</p></div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg font-semibold">Loading Profile...</p>
+      </div>
+    );
   }
   
   const isAdmin = userProfile.permissionRole === 'admin' || userProfile.permissionRole === 'super-admin';
@@ -113,47 +129,57 @@ export default function ProfilePage() {
       <main className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
         <div className="w-full max-w-md mx-auto">
           {/* Redesigned Virtual ID Card */}
-          <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-blue-900 to-gray-800 p-6 text-white shadow-2xl space-y-6">
-            <div className="flex justify-between items-center">
-              <Image
-                src="/logo/sae_logo_white.png" 
-                alt="SAE CUSAT Logo"
-                width={70} 
-                height={35} 
-                priority
-              />
-              <div className="text-right">
-                <span className="font-bold tracking-wider">{userProfile.displayTitle ? userProfile.displayTitle.toUpperCase() : userProfile.permissionRole.toUpperCase()}</span>
-                <div className={`mt-1 flex items-center justify-end space-x-2 text-xs font-medium px-2 py-0.5 rounded-full ${userProfile.isCheckedIn ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>
-                  <div className={`w-2 h-2 rounded-full ${userProfile.isCheckedIn ? 'bg-green-900' : 'bg-red-900'}`}></div>
-                  <span>{userProfile.isCheckedIn ? 'IN LAB' : 'NOT IN LAB'}</span>
+          <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-2xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center">
+                <Image
+                  src="/logo/sae_logo_white.png" 
+                  alt="SAE CUSAT Logo"
+                  width={70} 
+                  height={35} 
+                  priority
+                />
+                <div className="text-right">
+                  <span className="font-bold tracking-wider">{userProfile.displayTitle ? userProfile.displayTitle.toUpperCase() : userProfile.permissionRole.toUpperCase()}</span>
+                  <div className={`mt-1 flex items-center justify-end space-x-2 text-xs font-medium px-2 py-0.5 rounded-full ${userProfile.isCheckedIn ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>
+                    <div className={`w-2 h-2 rounded-full ${userProfile.isCheckedIn ? 'bg-green-900' : 'bg-red-900'}`}></div>
+                    <span>{userProfile.isCheckedIn ? 'IN LAB' : 'NOT IN LAB'}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center space-x-5">
-              <Image
-                src={userProfile.photoUrl || `https://i.pravatar.cc/150?u=${userProfile.id}`}
-                alt="Profile Photo"
-                width={88}
-                height={88}
-                className="rounded-full ring-4 ring-white/20 object-cover"
-                priority
-              />
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold">{userProfile.name}</h3>
-                <p className="text-sm font-mono opacity-80">{userProfile.saeId || 'Pending ID'}</p>
+              <div className="flex items-center space-x-5 mt-6">
+                <Image
+                  src={userProfile.photoUrl || `https://i.pravatar.cc/150?u=${userProfile.id}`}
+                  alt="Profile Photo"
+                  width={88}
+                  height={88}
+                  className="rounded-full ring-4 ring-white/20 object-cover"
+                  priority
+                />
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold">{userProfile.name}</h3>
+                  <p className="text-sm font-mono opacity-80">{userProfile.saeId || 'Pending ID'}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-white/20 pt-4 mt-6 space-y-2 text-sm">
+                <DetailRow label="Branch" value={userProfile.branch} />
+                <DetailRow label="Semester" value={userProfile.semester} />
+                <DetailRow label="Email" value={userProfile.email} />
+                <DetailRow label="Mobile" value={userProfile.mobileNumber} />
+                <DetailRow label="Blood Group" value={userProfile.bloodGroup} />
+                <DetailRow label="Guardian" value={userProfile.guardianNumber} />
               </div>
             </div>
 
-            <div className="border-t border-white/20 pt-4 space-y-2 text-sm">
-              <DetailRow label="Branch" value={userProfile.branch} />
-              <DetailRow label="Semester" value={userProfile.semester} />
-              <DetailRow label="Email" value={userProfile.email} />
-              <DetailRow label="Mobile" value={userProfile.mobileNumber} />
-              <DetailRow label="Blood Group" value={userProfile.bloodGroup} />
-              <DetailRow label="Guardian" value={userProfile.guardianNumber} />
-            </div>
+            {/* Highlighted Team Section */}
+            {userProfile.team && (
+              <div className="bg-white/10 rounded-b-2xl px-6 py-3 text-center">
+                <span className="text-xs font-semibold tracking-widest opacity-70">TEAM</span>
+                <p className="text-lg font-bold">{userProfile.team}</p>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -182,6 +208,12 @@ export default function ProfilePage() {
               <label className="block text-sm font-medium text-gray-700">Name</label>
               <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
             </div>
+             <div>
+              <label className="block text-sm font-medium text-gray-700">Team Name</label>
+              <select value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                  {TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
               <input type="text" value={formData.mobileNumber} onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
@@ -196,7 +228,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Photo URL</label>
-              <input type="text" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
+              <input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
             </div>
             <div className="flex justify-end space-x-4 pt-4">
               <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>

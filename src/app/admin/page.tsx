@@ -17,8 +17,8 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 
+// --- Type Definitions ---
 type UserProfile = {
   id: string;
   name: string;
@@ -35,6 +35,7 @@ type UserProfile = {
   displayTitle: string;
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
+  team: string;
 };
 
 type AttendanceRecord = {
@@ -69,6 +70,8 @@ export default function AdminPage() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [viewingUser, setViewingUser] = useState<UserProfile | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -123,18 +126,16 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!user) return;
-    // CORRECTED: More robust query for fetching attendance history
     const attendanceQuery = query(
       collection(firestore, 'attendance'),
       where('date', '==', historyDate),
-      orderBy('checkInTime', 'asc') // Fetch in chronological order
+      orderBy('checkInTime', 'asc')
     );
     const historyUnsub = onSnapshot(attendanceQuery, (snapshot) => {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
       setHistory(records);
     }, (error) => {
         console.error("Error fetching attendance history: ", error);
-        // This is where you might see a permissions error or an index error
     });
     return () => historyUnsub();
   }, [user, historyDate]);
@@ -178,8 +179,7 @@ export default function AdminPage() {
     try {
         const userDocRef = doc(firestore, 'users', userId);
         await deleteDoc(userDocRef);
-        // Note: This does not delete the Firebase Auth user. That must be done from the console.
-        alert('User rejected and data deleted. Their login account must be deleted from the Authentication tab manually for now.');
+        alert('User rejected and data deleted. Please remember to also delete their login account from the Firebase Authentication console.');
     } catch (error) {
         console.error("Rejection error:", error);
         alert('Error rejecting user.');
@@ -203,6 +203,23 @@ export default function AdminPage() {
       }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deletingUser || !deletingUser.saeId || deleteConfirmText !== deletingUser.saeId) {
+      alert("The SAE ID you typed does not match. Deletion cancelled.");
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(firestore, 'users', deletingUser.id));
+      alert(`Successfully deleted the profile for ${deletingUser.name}. Please remember to manually delete their login account from the Firebase Authentication console.`);
+      setDeletingUser(null);
+      setDeleteConfirmText('');
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert("Failed to delete user data.");
+    }
+  };
+
   const formatDate = (timestamp: Timestamp | null) => {
     if (!timestamp) return 'In Lab';
     return timestamp.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -214,12 +231,12 @@ export default function AdminPage() {
     <>
       <main className="min-h-screen bg-gray-50 p-4 sm:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
-          <header className="flex justify-between items-center">
+          <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600">Welcome, {userProfile?.name}</p>
             </div>
-            <button onClick={() => router.push('/profile')} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">My Profile</button>
+            <button onClick={() => router.push('/profile')} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 w-full sm:w-auto">My Profile</button>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -246,9 +263,9 @@ export default function AdminPage() {
             </div>
 
             <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-4">
                 <h3 className="text-lg font-semibold text-gray-800">Attendance History</h3>
-                <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} className="border rounded-md px-2 py-1"/>
+                <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} className="border rounded-md px-2 py-1 w-full sm:w-auto"/>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
@@ -263,10 +280,10 @@ export default function AdminPage() {
                   <tbody>
                     {history.map(rec => (
                       <tr key={rec.id} className="border-b">
-                        <td className="p-3">{rec.userName}</td>
-                        <td className="p-3">{rec.saeId}</td>
-                        <td className="p-3">{formatDate(rec.checkInTime)}</td>
-                        <td className="p-3">{formatDate(rec.checkOutTime)}</td>
+                        <td className="p-3 whitespace-nowrap">{rec.userName}</td>
+                        <td className="p-3 whitespace-nowrap">{rec.saeId}</td>
+                        <td className="p-3 whitespace-nowrap">{formatDate(rec.checkInTime)}</td>
+                        <td className="p-3 whitespace-nowrap">{formatDate(rec.checkOutTime)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -278,47 +295,52 @@ export default function AdminPage() {
 
           <div className="bg-white p-6 rounded-lg shadow-md">
              <h3 className="text-lg font-semibold text-gray-800 mb-4">Pending Approvals ({pendingUsers.length})</h3>
-             {pendingUsers.length > 0 ? (
-                <table className="w-full text-sm text-left">
-                  <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Branch</th><th className="p-3">Actions</th></tr></thead>
-                  <tbody>
-                    {pendingUsers.map(pUser => (
-                      <tr key={pUser.id} className="border-b">
-                        <td className="p-3">{pUser.name}</td>
-                        <td className="p-3">{pUser.email}</td>
-                        <td className="p-3">{pUser.branch}</td>
-                        <td className="p-3 flex space-x-2">
-                          <button onClick={() => setViewingUser(pUser)} className="text-blue-600 hover:underline">View</button>
-                          <button onClick={() => handleApprove(pUser)} className="text-green-600 hover:underline">Approve</button>
-                          <button onClick={() => handleReject(pUser.id)} className="text-red-600 hover:underline">Reject</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-             ) : <p className="text-gray-500">No new members awaiting approval.</p>}
+             <div className="overflow-x-auto">
+                {pendingUsers.length > 0 ? (
+                    <table className="w-full text-sm text-left">
+                      <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Branch</th><th className="p-3">Actions</th></tr></thead>
+                      <tbody>
+                        {pendingUsers.map(pUser => (
+                          <tr key={pUser.id} className="border-b">
+                            <td className="p-3 whitespace-nowrap">{pUser.name}</td>
+                            <td className="p-3 whitespace-nowrap">{pUser.email}</td>
+                            <td className="p-3">{pUser.branch}</td>
+                            <td className="p-3 flex flex-wrap gap-2">
+                              <button onClick={() => setViewingUser(pUser)} className="text-blue-600 hover:underline">View</button>
+                              <button onClick={() => handleApprove(pUser)} className="text-green-600 hover:underline">Approve</button>
+                              <button onClick={() => handleReject(pUser.id)} className="text-red-600 hover:underline">Reject</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                ) : <p className="text-gray-500">No new members awaiting approval.</p>}
+             </div>
           </div>
 
           {userProfile?.permissionRole === 'super-admin' && (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">User Management</h3>
-              <table className="w-full text-sm text-left">
-                <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">SAE ID</th><th className="p-3">Role</th><th className="p-3">Title</th><th className="p-3">Actions</th></tr></thead>
-                <tbody>
-                  {allUsers.map(aUser => (
-                    <tr key={aUser.id} className="border-b">
-                      <td className="p-3">{aUser.name}</td>
-                      <td className="p-3">{aUser.saeId || 'Pending'}</td>
-                      <td className="p-3">{aUser.permissionRole}</td>
-                      <td className="p-3">{aUser.displayTitle}</td>
-                      <td className="p-3 flex space-x-2">
-                        <button onClick={() => setViewingUser(aUser)} className="text-blue-600 hover:underline">View</button>
-                        <button onClick={() => setEditingUser(aUser)} className="text-indigo-600 hover:underline">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">SAE ID</th><th className="p-3">Team</th><th className="p-3">Role</th><th className="p-3">Actions</th></tr></thead>
+                  <tbody>
+                    {allUsers.map(aUser => (
+                      <tr key={aUser.id} className="border-b">
+                        <td className="p-3 whitespace-nowrap">{aUser.name}</td>
+                        <td className="p-3 whitespace-nowrap">{aUser.saeId || 'Pending'}</td>
+                        <td className="p-3 whitespace-nowrap">{aUser.team}</td>
+                        <td className="p-3">{aUser.permissionRole}</td>
+                        <td className="p-3 flex flex-wrap gap-2">
+                          <button onClick={() => setViewingUser(aUser)} className="text-blue-600 hover:underline">View</button>
+                          <button onClick={() => setEditingUser(aUser)} className="text-indigo-600 hover:underline">Edit</button>
+                          <button onClick={() => setDeletingUser(aUser)} className="text-red-600 font-semibold hover:underline">Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -332,6 +354,7 @@ export default function AdminPage() {
             <h2 className="text-2xl font-bold mb-4">{viewingUser.name}'s Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
                 <p><strong>SAE ID:</strong> {viewingUser.saeId || 'Pending'}</p>
+                <p><strong>Team:</strong> {viewingUser.team}</p>
                 <p><strong>Email:</strong> {viewingUser.email}</p>
                 <p><strong>Branch:</strong> {viewingUser.branch}</p>
                 <p><strong>Semester:</strong> {viewingUser.semester}</p>
@@ -366,6 +389,35 @@ export default function AdminPage() {
                 <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">Save Changes</button>
              </div>
           </form>
+        </div>
+      )}
+      {deletingUser && userProfile?.permissionRole === 'super-admin' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl relative space-y-4">
+              <h2 className="text-2xl font-bold text-red-700">Confirm Deletion</h2>
+              <p>This action is irreversible. It will permanently delete the profile data for **{deletingUser.name}**.</p>
+              <p>To confirm, please type the user's full SAE ID below: <br/> <strong className="font-mono">{deletingUser.saeId}</strong></p>
+              
+              <input 
+                type="text" 
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                placeholder="Type the SAE ID to confirm"
+              />
+
+              <div className="flex justify-end space-x-4 pt-4">
+                <button type="button" onClick={() => { setDeletingUser(null); setDeleteConfirmText(''); }} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+                <button 
+                  type="button" 
+                  onClick={handleDeleteUser} 
+                  disabled={deleteConfirmText !== deletingUser.saeId}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md disabled:bg-red-300 disabled:cursor-not-allowed"
+                >
+                  Delete User Data
+                </button>
+              </div>
+          </div>
         </div>
       )}
     </>
