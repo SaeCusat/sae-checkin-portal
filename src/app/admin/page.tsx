@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, useMemo } from 'react';
 import { auth, firestore } from '../../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
@@ -45,6 +45,7 @@ type AttendanceRecord = {
   saeId: string;
   checkInTime: Timestamp;
   checkOutTime: Timestamp | null;
+  date: string; // Added date field
 };
 
 type LiveUser = {
@@ -66,6 +67,7 @@ export default function AdminPage() {
   // History State
   const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0]);
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const [historySearchTerm, setHistorySearchTerm] = useState(''); // New state for history search
 
   // User Management State
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
@@ -74,7 +76,10 @@ export default function AdminPage() {
   const [viewingUser, setViewingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [pendingSearchTerm, setPendingSearchTerm] = useState(''); // New state for pending search
+  const [userSearchTerm, setUserSearchTerm] = useState(''); // New state for user management search
 
+  // --- useEffect hooks remain the same ---
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -84,8 +89,16 @@ export default function AdminPage() {
           setUser(currentUser);
           setUserProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
         } else {
-          alert('Access Denied. You do not have admin privileges.');
-          router.push('/profile');
+          // If the user exists but isn't an admin, redirect them.
+          // Check if it's not already on the profile page to avoid loop if rules are wrong
+          if(typeof window !== 'undefined' && window.location.pathname !== '/profile') {
+            alert('Access Denied. You do not have admin privileges.');
+            router.push('/profile');
+          } else {
+             // If already on profile page and somehow still here, just log out perhaps
+             auth.signOut();
+             router.push('/');
+          }
         }
       } else {
         router.push('/');
@@ -99,27 +112,26 @@ export default function AdminPage() {
     if (!user) return;
 
     // Listener for live lab status
-    const labStatusUnsub = onSnapshot(doc(firestore, 'labStatus', 'current'), (doc) => {
-      const data = doc.data();
+    const labStatusUnsub = onSnapshot(doc(firestore, 'labStatus', 'current'), (docSnap) => {
+      const data = docSnap.data();
       setLabIsOpen(data?.isLabOpen || false);
       setLiveUsers(data?.currentlyCheckedIn || []);
-    });
+    }, (error) => { console.error("Error listening to lab status:", error); });
 
     // Listener for pending users
     const pendingQuery = query(collection(firestore, 'users'), where('accountStatus', '==', 'pending'));
     const pendingUnsub = onSnapshot(pendingQuery, (snapshot) => {
       const pUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
       setPendingUsers(pUsers);
-    });
-    
+    }, (error) => { console.error("Error listening to pending users:", error); });
+
     // Listener for all users (Admin and Super-Admin)
     const allUsersQuery = query(collection(firestore, 'users'), orderBy('name'));
     const allUsersUnsub = onSnapshot(allUsersQuery, (snapshot) => {
       const aUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
       setAllUsers(aUsers);
     }, (error) => {
-      console.error("Error fetching all users:", error); // Check for permissions error here
-      // Handle the error appropriately, e.g., show a message to the user
+      console.error("Error fetching all users:", error);
     });
 
     // Cleanup listeners on component unmount
@@ -146,70 +158,121 @@ export default function AdminPage() {
     });
     return () => historyUnsub();
   }, [user, historyDate]);
-  
+
+  // --- Memoized Filtered Lists ---
+  const filteredHistory = useMemo(() => {
+    if (!historySearchTerm) return history;
+    const lowerCaseSearch = historySearchTerm.toLowerCase();
+    return history.filter(rec =>
+      rec.userName?.toLowerCase().includes(lowerCaseSearch) || // Added optional chaining
+      (rec.saeId && rec.saeId.toLowerCase().includes(lowerCaseSearch))
+    );
+  }, [history, historySearchTerm]);
+
+  const filteredPendingUsers = useMemo(() => {
+    if (!pendingSearchTerm) return pendingUsers;
+    const lowerCaseSearch = pendingSearchTerm.toLowerCase();
+    return pendingUsers.filter(user =>
+      user.name?.toLowerCase().includes(lowerCaseSearch) || // Added optional chaining
+      user.email?.toLowerCase().includes(lowerCaseSearch) // Added optional chaining
+    );
+  }, [pendingUsers, pendingSearchTerm]);
+
+  const filteredAllUsers = useMemo(() => {
+    if (!userSearchTerm) return allUsers;
+    const lowerCaseSearch = userSearchTerm.toLowerCase();
+    return allUsers.filter(user =>
+      user.name?.toLowerCase().includes(lowerCaseSearch) || // Added optional chaining
+      (user.saeId && user.saeId.toLowerCase().includes(lowerCaseSearch)) ||
+      user.email?.toLowerCase().includes(lowerCaseSearch) // Added optional chaining
+    );
+  }, [allUsers, userSearchTerm]);
+
+  // --- Action Handlers ---
   const handleApprove = async (pendingUser: UserProfile) => {
-    if (!window.confirm(`Are you sure you want to approve ${pendingUser.name}? An SAE ID will be generated.`)) return;
-    
+    // Basic confirmation
+    if (!window.confirm(`Approve ${pendingUser.name}? An SAE ID will be generated.`)) return;
+
     try {
-      const branchCode = pendingUser.branch.toUpperCase();
-      const year = pendingUser.joinYear; // Assuming joinYear is '25' format
-      const counterRef = doc(firestore, 'counters', `${branchCode}${year}`);
-      
-      let serialNumber: number;
-      await runTransaction(firestore, async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
-        serialNumber = (counterDoc.exists() ? counterDoc.data().count : 0) + 1;
-        transaction.set(counterRef, { count: serialNumber }, { merge: true });
-      });
+        const branchCode = pendingUser.branch?.toUpperCase() || 'XX'; // Fallback code
+        const year = pendingUser.joinYear?.slice(-2) || 'YY'; // Fallback year
+        const counterRef = doc(firestore, 'counters', `${branchCode}${year}`);
 
-      if (serialNumber! === undefined) throw new Error("Could not generate serial number.");
+        // FIX 1: Initialize serialNumber before the transaction
+        let serialNumber: number = 0; // Initialize with a default value
 
-      const paddedSerial = serialNumber!.toString().padStart(3, '0');
-      const newSaeId = `SAE${branchCode}${year}${paddedSerial}`;
+        // Firestore Transaction for atomic counter increment
+        await runTransaction(firestore, async (transaction) => {
+            const counterDoc = await transaction.get(counterRef);
+            serialNumber = (counterDoc.exists() ? counterDoc.data().count : 0) + 1;
+            // Update the counter within the transaction
+            transaction.set(counterRef, { count: serialNumber }, { merge: true });
+        });
 
-      const userDocRef = doc(firestore, 'users', pendingUser.id);
-      await updateDoc(userDocRef, { 
-        accountStatus: 'approved',
-        saeId: newSaeId,
-      });
-      
-      alert(`User approved! Their new SAE ID is: ${newSaeId}`);
-      
-    } catch (error) {
+         // FIX 1 cont.: Check if serialNumber was successfully updated (it should be > 0)
+         if (serialNumber <= 0) {
+            throw new Error("Failed to generate serial number.");
+        }
+
+
+        const paddedSerial = serialNumber.toString().padStart(3, '0');
+        const newSaeId = `SAE${branchCode}${year}${paddedSerial}`;
+
+        // Update the user document outside the transaction
+        const userDocRef = doc(firestore, 'users', pendingUser.id);
+        await updateDoc(userDocRef, {
+            accountStatus: 'approved',
+            saeId: newSaeId,
+        });
+
+        alert(`User approved! Their new SAE ID is: ${newSaeId}`);
+
+    } catch (error: any) { // FIX 2: Type error as 'any'
         console.error("Approval error:", error);
-        alert('Error approving user.');
+        alert(`Error approving user: ${error.message}`);
     }
-  };
+};
 
   const handleReject = async (userId: string) => {
-     if (!window.confirm("Are you sure? This will delete the user's registration data.")) return;
+     if (!window.confirm("Reject user? This deletes their registration data.")) return;
     try {
         const userDocRef = doc(firestore, 'users', userId);
         await deleteDoc(userDocRef);
-        alert('User rejected and data deleted. Their login account must be deleted from the Authentication console manually.');
-    } catch (error) {
+        alert('User rejected and data deleted. Remember to delete their login from Firebase Authentication manually.');
+    } catch (error: any) { // FIX 2: Type error as 'any'
         console.error("Rejection error:", error);
         alert('Error rejecting user.');
     }
   };
 
   const handleDeleteUser = async () => {
-    if (!deletingUser || deleteConfirmText !== deletingUser.saeId) {
-      alert("SAE ID does not match. Deletion cancelled.");
+    // Explicit check that deletingUser is not null before proceeding
+    if (!deletingUser) {
+        console.error("Attempted to delete but deletingUser is null");
+        return;
+    }
+
+    // Check if SAE ID exists and matches confirmation text
+    if (!deletingUser.saeId || deleteConfirmText !== deletingUser.saeId) {
+      alert("SAE ID does not match or is missing. Deletion cancelled.");
       return;
     }
+
+    // Final confirmation prompt
+    if (!window.confirm(`FINAL CONFIRMATION: Delete ${deletingUser.name}? This cannot be undone.`)) return;
+
     try {
       const userDocRef = doc(firestore, 'users', deletingUser.id);
       await deleteDoc(userDocRef);
       alert(`User ${deletingUser.name} deleted successfully. Remember to manually delete their login from Firebase Authentication.`);
       setDeletingUser(null);
       setDeleteConfirmText('');
-    } catch (error) {
+    } catch (error: any) { // FIX 2: Type error as 'any'
       console.error("Deletion error:", error);
       alert('Error deleting user.');
     }
   };
-  
+
   const handleUpdateUser = async (e: FormEvent) => {
       e.preventDefault();
       if (!editingUser) return;
@@ -221,7 +284,7 @@ export default function AdminPage() {
           });
           alert("User updated successfully.");
           setEditingUser(null);
-      } catch (error) {
+      } catch (error: any) { // FIX 2: Type error as 'any'
           console.error("User update error:", error);
           alert("Failed to update user.");
       }
@@ -231,13 +294,15 @@ export default function AdminPage() {
     if (!timestamp) return 'In Lab';
     return timestamp.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
-  
+
+
   if (loading) return <div className="flex justify-center items-center min-h-screen"><p>Loading Admin Dashboard...</p></div>;
 
   return (
     <>
       <main className="min-h-screen bg-gray-50 p-4 sm:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header */}
           <header className="flex flex-wrap justify-between items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
@@ -248,8 +313,9 @@ export default function AdminPage() {
 
           {/* Live Status and History Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Live Status Column */}
             <div className="md:col-span-1 space-y-6">
-              {/* Live Lab Status Card */}
+              {/* Cards remain the same */}
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-lg font-semibold text-gray-800">Live Lab Status</h3>
                 <div className={`mt-4 text-3xl font-bold flex items-center ${labIsOpen ? 'text-green-600' : 'text-red-600'}`}>
@@ -258,17 +324,10 @@ export default function AdminPage() {
                 </div>
                 <p className="text-gray-500 mt-2">{liveUsers.length} {liveUsers.length === 1 ? 'person' : 'people'} currently in lab.</p>
               </div>
-              
-              {/* Currently in Lab Card */}
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-lg font-semibold text-gray-800">Currently in Lab</h3>
-                {liveUsers.length > 0 ? (
-                  <ul className="mt-4 space-y-2 text-gray-700 max-h-40 overflow-y-auto">
-                    {liveUsers.map(liveUser => <li key={liveUser.id}>{liveUser.name}</li>)}
-                  </ul>
-                ) : (
-                  <p className="mt-4 text-gray-500">The lab is currently empty.</p>
-                )}
+                {liveUsers.length > 0 ? ( <ul className="mt-4 space-y-2 text-gray-700 max-h-40 overflow-y-auto">{liveUsers.map(liveUser => <li key={liveUser.id}>{liveUser.name}</li>)}</ul>)
+                 : (<p className="mt-4 text-gray-500">The lab is currently empty.</p>)}
               </div>
             </div>
 
@@ -276,11 +335,20 @@ export default function AdminPage() {
             <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">Attendance History</h3>
-                <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} className="border rounded-md px-2 py-1"/>
+                <div className="flex items-center gap-4">
+                  {/* History Search Input */}
+                  <input
+                    type="text"
+                    placeholder="Search Name/ID..."
+                    value={historySearchTerm}
+                    onChange={(e) => setHistorySearchTerm(e.target.value)}
+                    className="border rounded-md px-2 py-1 text-sm w-40"
+                  />
+                  <input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} className="border rounded-md px-2 py-1"/>
+                </div>
               </div>
-              <div className="overflow-x-auto max-h-96"> {/* Added max-height and overflow */}
+              <div className="overflow-x-auto max-h-96">
                 <table className="w-full text-sm text-left">
-                  {/* CORRECTED: Removed whitespace before <tr> */}
                   <thead className="bg-gray-100 sticky top-0"><tr>
                     <th className="p-3">Name</th>
                     <th className="p-3">SAE ID</th>
@@ -288,7 +356,8 @@ export default function AdminPage() {
                     <th className="p-3">Check Out</th>
                   </tr></thead>
                   <tbody>
-                    {history.map(rec => (
+                    {/* Use filteredHistory */}
+                    {filteredHistory.map(rec => (
                       <tr key={rec.id} className="border-b hover:bg-gray-50">
                         <td className="p-3">{rec.userName}</td>
                         <td className="p-3">{rec.saeId}</td>
@@ -298,21 +367,31 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
-                 {history.length === 0 && <p className="text-center text-gray-500 py-8">No records found for this date.</p>}
+                 {filteredHistory.length === 0 && <p className="text-center text-gray-500 py-8">No records found {historySearchTerm ? 'matching your search' : 'for this date'}.</p>}
               </div>
             </div>
           </div>
 
           {/* Pending Approvals Card */}
           <div className="bg-white p-6 rounded-lg shadow-md">
-             <h3 className="text-lg font-semibold text-gray-800 mb-4">Pending Approvals ({pendingUsers.length})</h3>
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Pending Approvals ({filteredPendingUsers.length})</h3>
+              {/* Pending Search Input */}
+              <input
+                type="text"
+                placeholder="Search Name/Email..."
+                value={pendingSearchTerm}
+                onChange={(e) => setPendingSearchTerm(e.target.value)}
+                className="border rounded-md px-2 py-1 text-sm w-48"
+              />
+            </div>
              {pendingUsers.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left">
-                    {/* CORRECTED: Removed whitespace before <tr> */}
                     <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Branch</th><th className="p-3">Actions</th></tr></thead>
                     <tbody>
-                      {pendingUsers.map(pUser => (
+                      {/* Use filteredPendingUsers */}
+                      {filteredPendingUsers.map(pUser => (
                         <tr key={pUser.id} className="border-b hover:bg-gray-50">
                           <td className="p-3">{pUser.name}</td>
                           <td className="p-3">{pUser.email}</td>
@@ -326,6 +405,7 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                   {filteredPendingUsers.length === 0 && pendingSearchTerm && <p className="text-center text-gray-500 py-4">No pending users match your search.</p>}
                 </div>
              ) : <p className="text-gray-500">No new members awaiting approval.</p>}
           </div>
@@ -333,21 +413,30 @@ export default function AdminPage() {
           {/* User Management Card (Visible to Admin and Super-Admin) */}
           {(userProfile?.permissionRole === 'admin' || userProfile?.permissionRole === 'super-admin') && (
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">User Management</h3>
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">User Management ({filteredAllUsers.length})</h3>
+                {/* User Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search Name/ID/Email..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="border rounded-md px-2 py-1 text-sm w-56"
+                />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  {/* CORRECTED: Removed whitespace before <tr> */}
                   <thead><tr className="bg-gray-100"><th className="p-3">Name</th><th className="p-3">SAE ID</th><th className="p-3">Team</th><th className="p-3">Role</th><th className="p-3">Actions</th></tr></thead>
                   <tbody>
-                    {allUsers.map(aUser => (
+                    {/* Use filteredAllUsers */}
+                    {filteredAllUsers.map(aUser => (
                       <tr key={aUser.id} className="border-b hover:bg-gray-50">
                         <td className="p-3">{aUser.name}</td>
                         <td className="p-3">{aUser.saeId || 'Pending'}</td>
-                        <td className="p-3">{aUser.team}</td>
+                        <td className="p-3">{aUser.team || 'N/A'}</td>
                         <td className="p-3">{aUser.permissionRole}</td>
                         <td className="p-3 flex flex-wrap gap-2">
                           <button onClick={() => setViewingUser(aUser)} className="text-xs text-blue-600 hover:underline">View</button>
-                          {/* Only show Edit button to Super Admin */}
                           {userProfile?.permissionRole === 'super-admin' && (
                               <button onClick={() => setEditingUser(aUser)} className="text-xs text-indigo-600 hover:underline">Edit</button>
                           )}
@@ -357,6 +446,7 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+                 {filteredAllUsers.length === 0 && userSearchTerm && <p className="text-center text-gray-500 py-4">No users match your search.</p>}
               </div>
             </div>
           )}
@@ -364,7 +454,6 @@ export default function AdminPage() {
       </main>
 
       {/* --- Modals --- */}
-      
       {/* View User Details Modal */}
       {viewingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -372,18 +461,7 @@ export default function AdminPage() {
             <button onClick={() => setViewingUser(null)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
             <h2 className="text-2xl font-bold mb-4">{viewingUser.name}'s Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
-                {/* Profile Photo */}
-                {viewingUser.photoUrl && (
-                  <div className="sm:col-span-2 flex justify-center mb-4">
-                     <Image 
-                       src={viewingUser.photoUrl} 
-                       alt="Profile" 
-                       width={100} 
-                       height={100} 
-                       className="rounded-full object-cover ring-2 ring-gray-300"
-                     />
-                  </div>
-                )}
+                {viewingUser.photoUrl && (<div className="sm:col-span-2 flex justify-center mb-4"><Image src={viewingUser.photoUrl} alt="Profile" width={100} height={100} className="rounded-full object-cover ring-2 ring-gray-300"/></div>)}
                 <p><strong>SAE ID:</strong> {viewingUser.saeId || 'Pending'}</p>
                 <p><strong>Team:</strong> {viewingUser.team || 'N/A'}</p>
                 <p><strong>Email:</strong> {viewingUser.email}</p>
@@ -401,33 +479,18 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-      
       {/* Edit User Modal (Super Admin only) */}
       {editingUser && userProfile?.permissionRole === 'super-admin' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <form onSubmit={handleUpdateUser} className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl space-y-4">
              <h2 className="text-2xl font-bold mb-4">Edit {editingUser.name}</h2>
-             <div>
-                <label className="block text-sm font-medium text-gray-700">Permission Role</label>
-                <select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="mt-1 block w-full border border-gray-300 rounded-md p-2">
-                    <option value="student">student</option>
-                    <option value="admin">admin</option>
-                    <option value="super-admin">super-admin</option>
-                </select>
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-gray-700">Display Title</label>
-                <input type="text" value={editingUser.displayTitle} onChange={e => setEditingUser({...editingUser, displayTitle: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/>
-             </div>
-             <div className="flex justify-end space-x-4 pt-4">
-                <button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">Save Changes</button>
-             </div>
+             <div><label className="block text-sm font-medium text-gray-700">Permission Role</label><select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="mt-1 block w-full border border-gray-300 rounded-md p-2"><option value="student">student</option><option value="admin">admin</option><option value="super-admin">super-admin</option></select></div>
+             <div><label className="block text-sm font-medium text-gray-700">Display Title</label><input type="text" value={editingUser.displayTitle} onChange={e => setEditingUser({...editingUser, displayTitle: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2"/></div>
+             <div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button><button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">Save Changes</button></div>
           </form>
         </div>
       )}
-
-      {/* Delete User Confirmation Modal (Admin and Super-Admin) */}
+       {/* Delete User Confirmation Modal (Admin and Super-Admin) */}
       {deletingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl space-y-4">
@@ -436,27 +499,9 @@ export default function AdminPage() {
              <p className="text-sm text-gray-600">This action will remove their profile data. Their login account must be manually deleted from Firebase Authentication.</p>
              <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700">To confirm, please type the user's SAE ID ({deletingUser.saeId || 'ID is Pending'}):</label>
-                <input 
-                  type="text" 
-                  value={deleteConfirmText} 
-                  onChange={e => setDeleteConfirmText(e.target.value)} 
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-                  placeholder={deletingUser.saeId || 'Pending ID'}
-                  disabled={!deletingUser.saeId} // Disable if ID is pending
-                />
+                <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md p-2" placeholder={deletingUser.saeId || 'Pending ID'} disabled={!deletingUser.saeId}/>
              </div>
-             <div className="flex justify-end space-x-4 pt-4">
-                <button type="button" onClick={() => { setDeletingUser(null); setDeleteConfirmText(''); }} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
-                <button 
-                  type="button" 
-                  onClick={handleDeleteUser} 
-                  // Only enable delete if SAE ID exists and matches input
-                  disabled={!deletingUser.saeId || deleteConfirmText !== deletingUser.saeId}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Delete User Data
-                </button>
-             </div>
+             <div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={() => { setDeletingUser(null); setDeleteConfirmText(''); }} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button><button type="button" onClick={handleDeleteUser} disabled={!deletingUser.saeId || deleteConfirmText !== deletingUser.saeId} className="px-4 py-2 bg-red-600 text-white rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed">Delete User Data</button></div>
           </div>
         </div>
       )}
