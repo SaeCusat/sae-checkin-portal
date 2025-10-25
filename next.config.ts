@@ -24,7 +24,7 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
-      // --- ADD THIS OBJECT ---
+      // Keep the object for placehold.co
       {
         protocol: 'https',
         hostname: 'placehold.co', // Allow images from placehold.co
@@ -35,6 +35,19 @@ const nextConfig = {
   },
   // Ensure reactStrictMode is enabled (usually default)
   reactStrictMode: true,
+
+  // TypeScript checking during build - now enabled for production quality
+  typescript: {
+    // Set to false to catch type errors during build
+    // Only set to true if you encounter blocking build issues
+    ignoreBuildErrors: false,
+  },
+
+  // ESLint checking during build - now enabled after fixing linting errors
+  eslint: {
+    // Set to false to enforce code quality standards during build
+    ignoreDuringBuilds: false,
+  },
 };
 
 // Wrap your config with the PWA plugin

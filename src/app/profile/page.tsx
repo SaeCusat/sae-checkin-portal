@@ -213,7 +213,7 @@ export default function ProfilePage() {
   const DetailRow = ({ label, value }: { label: string; value: string | undefined | null }) => (
     <div className="flex text-sm"> {/* Using text-sm from old code */}
         {/* Adjusted width to match the old code's alignment */}
-        <span className="w-28 font-semibold opacity-70 flex-shrink-0 flex justify-between pr-2">
+        <span className="w-28 font-semibold opacity-70 shrink-0 flex justify-between pr-2">
             <span>{label}</span>
             <span>:</span>
         </span>
@@ -243,7 +243,7 @@ export default function ProfilePage() {
         <div className="w-full max-w-md mx-auto space-y-6">
 
           {/* ----- RESTORED VIRTUAL ID CARD LAYOUT ----- */}
-          <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-2xl overflow-hidden">
+          <div className="rounded-2xl bg-linear-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-2xl overflow-hidden">
              {/* Main content padding - Adjusted to match old style */}
              <div className="p-6">
                 {/* Header: Logo, Title, Status */}
@@ -269,7 +269,7 @@ export default function ProfilePage() {
                         src={profileImageSrc}
                         alt="Profile Photo"
                         width={88} height={88}
-                        className="rounded-full ring-4 ring-white/20 object-cover bg-gray-500 flex-shrink-0"
+                        className="rounded-full ring-4 ring-white/20 object-cover bg-gray-500 shrink-0"
                         priority
                         unoptimized={isPlaceholder}
                         onError={(e) => {
@@ -322,7 +322,7 @@ export default function ProfilePage() {
           <div className="p-4 bg-white rounded-lg shadow-md space-y-3">
              {isAdmin && (
                 <Link href="/admin"
-                 className="block w-full text-center px-4 py-3 font-semibold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:shadow-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 ease-in-out"
+                 className="block w-full text-center px-4 py-3 font-semibold text-sm text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:shadow-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 ease-in-out"
                  >
                   Admin Dashboard
                 </Link>
@@ -371,9 +371,9 @@ export default function ProfilePage() {
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-style"/></div>
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label><input type="tel" value={formData.mobileNumber} onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })} className="input-style"/></div>
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label><input type="text" value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} className="input-style"/></div>
-             <div><label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label><input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="input-style"/> <p className="mt-1 text-xs text-gray-500">Paste a public link (e.g., from Google Drive, set to 'Anyone with the link').</p></div>
+             <div><label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label><input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="input-style"/> <p className="mt-1 text-xs text-gray-500">Paste a public link (e.g., from Google Drive, set to &apos;Anyone with the link&apos;).</p></div>
             {/* Conditional Fields */}
-            {userProfile.userType === 'student' && ( <> <div><label className="block text-sm font-medium text-gray-700 mb-1">Team Name</label><select value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })} className="input-style"><option value="" disabled={!!formData.team}>Select Team</option>{TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}</select></div> <div><label className="block text-sm font-medium text-gray-700 mb-1">Guardian's Number</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> </> )}
+            {userProfile.userType === 'student' && ( <> <div><label className="block text-sm font-medium text-gray-700 mb-1">Team Name</label><select value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })} className="input-style"><option value="" disabled={!!formData.team}>Select Team</option>{TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}</select></div> <div><label className="block text-sm font-medium text-gray-700 mb-1">Guardian&apos;s Number</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> </> )}
             {userProfile.userType === 'faculty' && ( <> <div><label className="block text-sm font-medium text-gray-700 mb-1">Department</label><select value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="input-style"><option value="" disabled={!!formData.department}>Select Department</option>{BRANCH_OPTIONS.map(dept => <option key={dept} value={dept}>{dept}</option>)}</select></div> <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact (Optional)</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> </> )}
             {/* Buttons */}
             <div className="flex justify-end space-x-4 pt-4"> <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">Cancel</button> <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors">Save Changes</button> </div>

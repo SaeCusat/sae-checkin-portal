@@ -112,7 +112,8 @@ export default function SignUpPage() {
             const user = userCredential.user;
             const correctedPhotoUrl = convertGoogleDriveUrl(formData.photoUrl);
 
-            const userData: any = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const userData: Record<string, any> = {
                 name: formData.name,
                 saeId: null,
                 email: formData.email,
@@ -143,15 +144,19 @@ export default function SignUpPage() {
 
             await setDoc(doc(firestore, 'users', user.uid), userData);
             setMessage("Registration successful! Your account is now awaiting approval from an admin. You will be able to log in once your account is approved.");
-        } catch (err: any) {
+        } catch (err) {
             console.error("Sign up error:", err);
-            setError(err.code === 'auth/email-already-in-use' ? "This email address is already registered." : (err.message || "An error occurred during sign-up."));
+            if (err && typeof err === 'object' && 'code' in err && err.code === 'auth/email-already-in-use') {
+                setError("This email address is already registered.");
+            } else {
+                setError((err as Error).message || "An error occurred during sign-up.");
+            }
         }
         setIsSubmitting(false);
     };
 
     return (
-        <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-100 p-4 py-12">
+        <main className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 via-blue-50 to-gray-100 p-4 py-12">
             <div className="w-full max-w-3xl p-8 md:p-10 space-y-8 bg-white rounded-xl shadow-lg">
                  <div className="flex justify-center mb-6">
                     <Image src="/logo/sae-logo.png" alt="SAE CUSAT Logo" width={100} height={50} />
@@ -231,7 +236,7 @@ export default function SignUpPage() {
                         {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
                         <div className="pt-4">
-                            <button type="submit" disabled={isSubmitting} className="w-full py-3 px-4 font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:bg-gray-400 disabled:shadow-none">
+                            <button type="submit" disabled={isSubmitting} className="w-full py-3 px-4 font-semibold text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:bg-gray-400 disabled:shadow-none">
                                 {isSubmitting ? 'Registering...' : 'Submit for Approval'}
                             </button>
                         </div>

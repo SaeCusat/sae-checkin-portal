@@ -36,12 +36,18 @@ export default function LoginPage() {
       }
       
       router.push('/profile');
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login Error:", err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {
-        setError('Invalid email or password.');
+      if (err && typeof err === 'object' && 'code' in err) {
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {
+          setError('Invalid email or password.');
+        } else if ('message' in err && typeof err.message === 'string') {
+          setError(err.message);
+        } else {
+          setError('An unexpected error occurred.');
+        }
       } else {
-        setError(err.message || 'An unexpected error occurred.');
+        setError('An unexpected error occurred.');
       }
     }
   };
@@ -53,9 +59,9 @@ export default function LoginPage() {
     try {
         await sendPasswordResetEmail(auth, resetEmail);
         setResetMessage(`A password reset link has been sent to ${resetEmail}. Please check your inbox (and spam folder).`);
-    } catch (error: any) {
+    } catch (error) {
         console.error("Password Reset Error:", error);
-        if (error.code === 'auth/user-not-found') {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/user-not-found') {
           setResetError('No account found with that email address.');
         } else {
           setResetError("Failed to send reset email. Please ensure the email address is correct.");

@@ -276,9 +276,9 @@ export default function AdminPage() {
 
         alert(`User approved! Their new SAE ID is: ${newSaeId}`);
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("Approval error:", error);
-        alert(`Error approving user: ${error.message}`);
+        alert(`Error approving user: ${(error as Error).message}`);
     }
 };
 
@@ -288,7 +288,7 @@ export default function AdminPage() {
         const userDocRef = doc(firestore, 'users', userId);
         await deleteDoc(userDocRef);
         alert('User rejected and data deleted. Remember to delete their login from Firebase Authentication manually.');
-    } catch (error: any) {
+    } catch (error) {
         console.error("Rejection error:", error);
         alert('Error rejecting user.');
     }
@@ -311,7 +311,7 @@ export default function AdminPage() {
       alert(`User ${deletingUser.name} deleted successfully. Remember to manually delete their login from Firebase Authentication.`);
       setDeletingUser(null);
       setDeleteConfirmText('');
-    } catch (error: any) {
+    } catch (error) {
       console.error("Deletion error:", error);
       alert('Error deleting user.');
     }
@@ -332,7 +332,7 @@ export default function AdminPage() {
           });
           alert("User updated successfully.");
           setEditingUser(null);
-      } catch (error: any) {
+      } catch (error) {
           console.error("User update error:", error);
           alert("Failed to update user.");
       }
@@ -508,7 +508,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setViewingUser(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl font-bold">&times;</button>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">{viewingUser.name}'s Details</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-800">{viewingUser.name}&apos;s Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm text-gray-700">
                 {viewingUser.photoUrl && (<div className="sm:col-span-2 flex justify-center mb-4"><Image src={viewingUser.photoUrl} alt="Profile" width={100} height={100} className="rounded-full object-cover ring-2 ring-gray-300 bg-gray-200"/></div>)}
                 <p><strong>Type:</strong> <span className="capitalize">{viewingUser.userType}</span></p>
@@ -550,7 +550,7 @@ export default function AdminPage() {
              <p className="text-gray-700">Are you sure you want to delete <span className="font-bold">{deletingUser.name}</span> ({deletingUser.saeId || 'Pending ID'})?</p>
              <p className="text-sm text-gray-600">This action will remove their profile data from Firestore. Their login account must be manually deleted from Firebase Authentication later.</p>
              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">To confirm, please type the user's SAE ID ({deletingUser.saeId || 'ID Pending'}):</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To confirm, please type the user&apos;s SAE ID ({deletingUser.saeId || 'ID Pending'}):</label>
                 <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} className="input-style" placeholder={deletingUser.saeId || 'Pending ID'} disabled={!deletingUser.saeId}/>
              </div>
              <div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={() => { setDeletingUser(null); setDeleteConfirmText(''); }} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">Cancel</button><button type="button" onClick={handleDeleteUser} disabled={!deletingUser.saeId || deleteConfirmText !== deletingUser.saeId} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">Delete User Data</button></div>

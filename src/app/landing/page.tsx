@@ -108,9 +108,9 @@ export default function LandingPage() {
       // Optionally redirect back to profile after check-in
       // router.push('/profile');
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error checking in:", error);
-      setError(`Failed to check in: ${error.message}`);
+      setError(`Failed to check in: ${(error as Error).message}`);
       alert('Failed to check in. Please try again.');
     }
     setIsSubmitting(false);
@@ -172,9 +172,9 @@ export default function LandingPage() {
         await updateDoc(doc(firestore, 'users', user.uid), { isCheckedIn: false });
         alert("No open check-in record found.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error checking out:", error);
-      setError(`Failed to check out: ${error.message}`);
+      setError(`Failed to check out: ${(error as Error).message}`);
       alert('Failed to check out. Please try again.');
     }
     setIsSubmitting(false);
@@ -190,9 +190,9 @@ export default function LandingPage() {
       alert('Lab status updated to CLOSED. Thank you!');
        // Optionally redirect back to profile after confirmation
       // router.push('/profile');
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error confirming closure:", error);
-        alert(`Failed to update lab status: ${error.message}`);
+        alert(`Failed to update lab status: ${(error as Error).message}`);
     }
      setIsSubmitting(false);
   };
