@@ -14,12 +14,6 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'i.pravatar.cc',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: 'lh3.googleusercontent.com', // For Google Drive images
         port: '',
         pathname: '/**',

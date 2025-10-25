@@ -25,6 +25,8 @@ const TEAM_OPTIONS = [
   "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
 ];
 const BRANCH_OPTIONS = ["ME", "EEE", "ECE", "SF", "CS", "IT", "CE"];
+const SEMESTER_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 // Branch/Department Full Forms
 const BRANCH_FULL_FORMS: { [key: string]: string } = {
@@ -36,11 +38,6 @@ const BRANCH_FULL_FORMS: { [key: string]: string } = {
   "ECE": "Electronics & Communication",
   "CE": "Civil Engineering"
 };
-
-// --- NEW: Define Placeholder URLs ---
-const STUDENT_PLACEHOLDER_BASE = 'https://placehold.co/88x88/cccccc/444444?text=';
-const FACULTY_PLACEHOLDER_URL = 'https://placehold.co/88x88/64748b/ffffff?text=User'; // Neutral gray placeholder
-
 
 type UserProfile = {
   id: string;
@@ -83,6 +80,8 @@ export default function ProfilePage() {
     photoUrl: '',
     team: '',
     department: '',
+    branch: '',
+    semester: '',
   });
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -121,10 +120,12 @@ export default function ProfilePage() {
             name: data.name,
             mobileNumber: data.mobileNumber || '',
             guardianNumber: data.guardianNumber || '',
-            bloodGroup: data.bloodGroup || '',
+            bloodGroup: data.bloodGroup || BLOOD_GROUP_OPTIONS[0],
             photoUrl: data.photoUrl || '',
             team: data.userType === 'student' ? (data.team || TEAM_OPTIONS[0]) : '',
             department: data.userType === 'faculty' ? (data.branch || BRANCH_OPTIONS[0]) : '',
+            branch: data.userType === 'student' ? (data.branch || BRANCH_OPTIONS[0]) : '',
+            semester: data.userType === 'student' ? (data.semester || '') : '',
           });
           setLoading(false);
         } else {
@@ -173,11 +174,13 @@ export default function ProfilePage() {
       name: formData.name,
       mobileNumber: formData.mobileNumber,
       bloodGroup: formData.bloodGroup,
-      photoUrl: formData.photoUrl ? convertGoogleDriveUrl(formData.photoUrl) : "",
+      photoUrl: formData.photoUrl ? convertGoogleDriveUrl(formData.photoUrl) : '',
       guardianNumber: formData.guardianNumber || undefined,
     };
     if (userProfile.userType === 'student') {
       updatedData.team = formData.team;
+      updatedData.branch = formData.branch;
+      updatedData.semester = formData.semester;
     } else {
       updatedData.branch = formData.department;
     }
@@ -234,19 +237,9 @@ export default function ProfilePage() {
   );
 
   // Determine Profile Image Source (using logic from previous correct version)
-  let profileImageSrc = userProfile.photoUrl;
-  let isPlaceholder = false;
-  if (!profileImageSrc) {
-    isPlaceholder = true;
-    if (userProfile.userType === 'faculty') {
-      profileImageSrc = FACULTY_PLACEHOLDER_URL;
-    } else {
-      const initial = userProfile.name?.[0]?.toUpperCase() || '?';
-      profileImageSrc = `${STUDENT_PLACEHOLDER_BASE}${initial}`;
-    }
-  } else if (profileImageSrc.includes('placehold.co')) {
-      isPlaceholder = true;
-  }
+  const profileImageSrc = userProfile.photoUrl;
+  const isPlaceholder = profileImageSrc?.includes('placehold.co') || false;
+  const showInitialAvatar = !profileImageSrc || profileImageSrc.includes('i.pravatar.cc');
 
   // Main Render
   return (
@@ -277,20 +270,35 @@ export default function ProfilePage() {
 
                 {/* Profile Pic and Name/ID - Adjusted spacing */}
                 <div className="flex items-center space-x-5 mt-6">
-                    <Image
-                        src={profileImageSrc}
-                        alt="Profile Photo"
-                        width={88} height={88}
-                        className="rounded-full ring-4 ring-white/20 object-cover bg-gray-500 shrink-0"
-                        priority
-                        unoptimized={isPlaceholder}
-                        onError={(e) => {
-                            let fallbackSrc = '';
-                            if (userProfile.userType === 'faculty') { fallbackSrc = FACULTY_PLACEHOLDER_URL; }
-                            else { const initial = userProfile.name?.[0]?.toUpperCase() || '?'; fallbackSrc = `${STUDENT_PLACEHOLDER_BASE}${initial}`; }
-                            if (e.currentTarget.src !== fallbackSrc) { e.currentTarget.src = fallbackSrc; }
-                        }}
-                    />
+                    {showInitialAvatar ? (
+                        <div className="w-[88px] h-[88px] rounded-full ring-4 ring-white/20 bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shrink-0">
+                            <span className="text-4xl font-bold text-white">
+                                {userProfile.name?.[0]?.toUpperCase() || '?'}
+                            </span>
+                        </div>
+                    ) : (
+                        <Image
+                            src={profileImageSrc}
+                            alt="Profile Photo"
+                            width={88} height={88}
+                            className="rounded-full ring-4 ring-white/20 object-cover bg-gray-500 shrink-0"
+                            priority
+                            unoptimized={isPlaceholder}
+                            onError={(e) => {
+                                // On error, hide the image and show initial avatar
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                    const initial = userProfile.name?.[0]?.toUpperCase() || '?';
+                                    parent.innerHTML = `
+                                        <div class="w-[88px] h-[88px] rounded-full ring-4 ring-white/20 bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shrink-0">
+                                            <span class="text-4xl font-bold text-white">${initial}</span>
+                                        </div>
+                                    `;
+                                }
+                            }}
+                        />
+                    )}
                     <div className="flex-1 min-w-0">
                         <h3 className="text-2xl font-bold truncate">{userProfile.name}</h3>
                         <p className="text-sm font-mono opacity-80">{userProfile.saeId || 'Pending ID'}</p>
@@ -436,11 +444,37 @@ export default function ProfilePage() {
              {/* Common fields */}
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-style"/></div>
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label><input type="tel" value={formData.mobileNumber} onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })} className="input-style"/></div>
-             <div><label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label><input type="text" value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} className="input-style"/></div>
-             <div><label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label><input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="input-style"/> <p className="mt-1 text-xs text-gray-500">Paste a public link (e.g., from Google Drive, set to &apos;Anyone with the link&apos;).</p></div>
+             <CustomDropdown
+               name="bloodGroup"
+               label="Blood Group"
+               value={formData.bloodGroup}
+               options={BLOOD_GROUP_OPTIONS}
+               onChange={(value) => setFormData({ ...formData, bloodGroup: value })}
+               required
+               searchable={false}
+             />
+             <div><label className="block text-sm font-medium text-gray-700 mb-1">Photo URL (Optional)</label><input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="input-style"/> <p className="mt-1 text-xs text-gray-500">Paste a public link (e.g., from Google Drive, set to &apos;Anyone with the link&apos;).</p></div>
             {/* Conditional Fields */}
             {userProfile.userType === 'student' && ( 
               <> 
+                <CustomDropdown
+                  name="branch"
+                  label="Branch"
+                  value={formData.branch}
+                  options={BRANCH_OPTIONS}
+                  onChange={(value) => setFormData({ ...formData, branch: value })}
+                  required
+                />
+                <CustomDropdown
+                  name="semester"
+                  label="Semester"
+                  value={formData.semester}
+                  options={SEMESTER_OPTIONS.map(s => `S${s}`)}
+                  onChange={(value) => setFormData({ ...formData, semester: value })}
+                  required
+                  searchable={false}
+                  renderOption={(option) => `Semester ${option.replace('S', '')}`}
+                />
                 <CustomDropdown
                   name="team"
                   label="Team Name"

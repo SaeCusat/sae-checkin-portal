@@ -23,6 +23,7 @@ const TEAM_OPTIONS = [
     "TARUSA", "YETI", "ASTRON ENDURANCE", "MARUTSAKHA",
     "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
 ];
+const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 // Helper component for form inputs with labels
 const InputField = ({ name, type, placeholder, required, onChange, value, className = '', label }: {
@@ -65,7 +66,7 @@ export default function SignUpPage() {
         team: TEAM_OPTIONS[0],
         joinYear: new Date().getFullYear().toString(),
         department: BRANCH_OPTIONS[0],
-        bloodGroup: '',
+        bloodGroup: BLOOD_GROUP_OPTIONS[0],
         mobileNumber: '',
         guardianNumber: '',
         photoUrl: '',
@@ -106,8 +107,8 @@ export default function SignUpPage() {
                 club: 'SAE CUSAT',
                 bloodGroup: formData.bloodGroup,
                 mobileNumber: formData.mobileNumber,
-                photoUrl: correctedPhotoUrl || `https://i.pravatar.cc/150?u=${user.uid}`,
-                permissionRole: 'student',
+                photoUrl: correctedPhotoUrl || '',
+                permissionRole: userType === 'student' ? 'student' : 'admin',
                 displayTitle: userType === 'student' ? 'Student' : 'Faculty',
                 isCheckedIn: false,
                 accountStatus: 'pending',
@@ -243,7 +244,16 @@ export default function SignUpPage() {
                                     />
                                     <InputField name="joinYear" type="number" label="Year of Joining" placeholder="YYYY" required onChange={handleChange} value={formData.joinYear} />
                                     <InputField name="guardianNumber" type="tel" label="Guardian's Number" required onChange={handleChange} value={formData.guardianNumber} />
-                                    <InputField name="bloodGroup" type="text" label="Blood Group" placeholder="e.g., O+" required onChange={handleChange} value={formData.bloodGroup} />
+                                    <CustomDropdown
+                                        name="bloodGroup"
+                                        label="Blood Group"
+                                        value={formData.bloodGroup}
+                                        options={BLOOD_GROUP_OPTIONS}
+                                        onChange={(value) => setFormData({ ...formData, bloodGroup: value })}
+                                        required
+                                        searchable={false}
+                                    />
+                                    <InputField name="photoUrl" type="url" label="Photo URL" placeholder="https://..." onChange={handleChange} value={formData.photoUrl} className="md:col-span-2" required />
                                 </>
                             )}
 
@@ -258,10 +268,17 @@ export default function SignUpPage() {
                                         required
                                     />
                                     <InputField name="guardianNumber" type="tel" label="Emergency Contact (Optional)" onChange={handleChange} value={formData.guardianNumber} />
-                                    <InputField name="bloodGroup" type="text" label="Blood Group (Optional)" placeholder="e.g., O+" onChange={handleChange} value={formData.bloodGroup} />
+                                    <CustomDropdown
+                                        name="bloodGroup"
+                                        label="Blood Group (Optional)"
+                                        value={formData.bloodGroup}
+                                        options={BLOOD_GROUP_OPTIONS}
+                                        onChange={(value) => setFormData({ ...formData, bloodGroup: value })}
+                                        searchable={false}
+                                    />
+                                    <InputField name="photoUrl" type="url" label="Photo URL (Optional)" placeholder="https://..." onChange={handleChange} value={formData.photoUrl} className="md:col-span-2" />
                                 </>
                             )}
-                            <InputField name="photoUrl" type="url" label="Photo URL (Optional)" placeholder="https://..." onChange={handleChange} value={formData.photoUrl} className="md:col-span-2" />
                         </div>
 
                         {error && (

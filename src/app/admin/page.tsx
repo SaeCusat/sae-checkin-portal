@@ -514,7 +514,30 @@ export default function AdminPage() {
             <button onClick={() => setViewingUser(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl font-bold">&times;</button>
             <h2 className="text-xl font-bold mb-4 text-gray-800">{viewingUser.name}&apos;s Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm text-gray-700">
-                {viewingUser.photoUrl && (<div className="sm:col-span-2 flex justify-center mb-4"><Image src={viewingUser.photoUrl} alt="Profile" width={100} height={100} className="rounded-full object-cover ring-2 ring-gray-300 bg-gray-200"/></div>)}
+                <div className="sm:col-span-2 flex justify-center mb-4">
+                  {viewingUser.photoUrl && !viewingUser.photoUrl.includes('i.pravatar.cc') ? (
+                    <Image 
+                      src={viewingUser.photoUrl} 
+                      alt="Profile" 
+                      width={100} 
+                      height={100} 
+                      className="rounded-full object-cover ring-2 ring-gray-300 bg-gray-200"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `<div class="w-[100px] h-[100px] rounded-full ring-2 ring-gray-300 bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center"><span class="text-4xl font-bold text-white">${viewingUser.name?.[0]?.toUpperCase() || '?'}</span></div>`;
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-[100px] h-[100px] rounded-full ring-2 ring-gray-300 bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                      <span className="text-4xl font-bold text-white">
+                        {viewingUser.name?.[0]?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <p><strong>Type:</strong> <span className="capitalize">{viewingUser.userType}</span></p>
                 <p><strong>SAE ID:</strong> {viewingUser.saeId || <span className="italic text-gray-500">Pending</span>}</p>
                 {viewingUser.userType === 'student' && <p><strong>Team:</strong> {viewingUser.team || 'N/A'}</p>}
