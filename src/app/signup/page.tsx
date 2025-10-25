@@ -153,7 +153,7 @@ export default function SignUpPage() {
                     <Image src="/logo/sae-logo.png" alt="SAE CUSAT Logo" width={100} height={50} />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-2xl sm:text-3xl font-bold gradient-text">New Member Registration</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-blue-900">New Member Registration</h2>
                     <p className="mt-2 text-xs sm:text-sm text-gray-600">Your SAE ID will be assigned after admin approval.</p>
                 </div>
 
@@ -178,7 +178,7 @@ export default function SignUpPage() {
                                 onClick={() => setUserType('student')}
                                 className={`flex-1 px-6 py-2.5 text-sm font-semibold rounded-md transition-all duration-200 ${
                                     userType === 'student'
-                                    ? 'bg-white text-indigo-700 shadow-soft'
+                                    ? 'bg-white text-blue-900 shadow-soft'
                                     : 'text-gray-600 hover:text-gray-900'
                                 }`}
                             >
@@ -192,7 +192,7 @@ export default function SignUpPage() {
                                 onClick={() => setUserType('faculty')}
                                 className={`flex-1 px-6 py-2.5 text-sm font-semibold rounded-md transition-all duration-200 ${
                                     userType === 'faculty'
-                                    ? 'bg-white text-indigo-700 shadow-soft'
+                                    ? 'bg-white text-blue-900 shadow-soft'
                                     : 'text-gray-600 hover:text-gray-900'
                                 }`}
                             >
@@ -295,7 +295,7 @@ export default function SignUpPage() {
                  <div className="text-sm text-center pt-4 border-t mt-6 border-gray-200">
                     <p className="text-gray-600">
                         Already have an account?{' '}
-                        <Link href="/" className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                        <Link href="/" className="font-semibold text-blue-800 hover:text-blue-900 transition-colors">
                            Sign In Here
                         </Link>
                     </p>

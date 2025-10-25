@@ -422,32 +422,34 @@ export default function AdminPage() {
           <div className="bg-white p-6 rounded-lg shadow-md">
              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Pending Approvals ({filteredPendingUsers.length})</h3>
-              <input type="text" placeholder="Search Name/Email..." value={pendingSearchTerm} onChange={(e) => setPendingSearchTerm(e.target.value)} className="input-style w-48"/>
+              <input type="text" placeholder="Search Name/Email..." value={pendingSearchTerm} onChange={(e) => setPendingSearchTerm(e.target.value)} className="input-style w-full sm:w-48"/>
             </div>
              {pendingUsers.length === 0 ? (<p className="text-gray-500">No new members awaiting approval.</p>)
              : filteredPendingUsers.length === 0 ? (<p className="text-center text-gray-500 py-4">No pending users match your search.</p>)
              : (
-                <div className="overflow-x-auto border rounded-md">
-                  <table className="w-full text-sm text-left">
+                <div className="overflow-x-auto border rounded-md -mx-6 sm:mx-0">
+                  <table className="w-full text-sm text-left min-w-[640px]">
                     <thead className="bg-gray-100"><tr>
-                        <th className="p-3 font-semibold text-gray-600">Name</th>
-                        <th className="p-3 font-semibold text-gray-600">Email</th>
-                        <th className="p-3 font-semibold text-gray-600">Type</th>
-                        <th className="p-3 font-semibold text-gray-600">Branch/Dept</th>
-                        <th className="p-3 font-semibold text-gray-600">Actions</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Name</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Email</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Type</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Branch/Dept</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Actions</th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-200">
                       {/* Use filteredPendingUsers */}
                       {filteredPendingUsers.map(pUser => (
                         <tr key={pUser.id} className="hover:bg-gray-50">
-                          <td className="p-3">{pUser.name}</td>
-                          <td className="p-3">{pUser.email}</td>
-                          <td className="p-3 capitalize">{pUser.userType}</td>
-                          <td className="p-3">{pUser.branch || 'N/A'}</td>
-                          <td className="p-3 flex flex-wrap gap-2">
-                            <button onClick={() => setViewingUser(pUser)} className="text-xs text-blue-600 hover:underline">View</button>
-                            <button onClick={() => handleApprove(pUser)} className="text-xs text-green-600 hover:underline">Approve</button>
-                            <button onClick={() => handleReject(pUser.id)} className="text-xs text-red-600 hover:underline">Reject</button>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{pUser.name}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap text-xs sm:text-sm">{pUser.email}</td>
+                          <td className="p-2 sm:p-3 capitalize whitespace-nowrap">{pUser.userType}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{pUser.branch || 'N/A'}</td>
+                          <td className="p-2 sm:p-3">
+                            <div className="flex flex-nowrap gap-2 whitespace-nowrap">
+                              <button onClick={() => setViewingUser(pUser)} className="text-xs text-blue-600 hover:underline">View</button>
+                              <button onClick={() => handleApprove(pUser)} className="text-xs text-green-600 hover:underline">Approve</button>
+                              <button onClick={() => handleReject(pUser.id)} className="text-xs text-red-600 hover:underline">Reject</button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -462,34 +464,36 @@ export default function AdminPage() {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">User Management ({filteredAllUsers.length})</h3>
-                <input type="text" placeholder="Search Name/ID/Email..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="input-style w-56"/>
+                <input type="text" placeholder="Search Name/ID/Email..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="input-style w-full sm:w-56"/>
               </div>
               {allUsers.length === 0 ? (<p className="text-gray-500">No users found in the system yet.</p>)
               : filteredAllUsers.length === 0 ? (<p className="text-center text-gray-500 py-4">No users match your search.</p>)
               : (
-                <div className="overflow-x-auto border rounded-md">
-                  <table className="w-full text-sm text-left">
+                <div className="overflow-x-auto border rounded-md -mx-6 sm:mx-0">
+                  <table className="w-full text-sm text-left min-w-[640px]">
                     <thead className="bg-gray-100"><tr>
-                        <th className="p-3 font-semibold text-gray-600">Name</th>
-                        <th className="p-3 font-semibold text-gray-600">SAE ID</th>
-                        <th className="p-3 font-semibold text-gray-600">Team</th>
-                        <th className="p-3 font-semibold text-gray-600">Role</th>
-                        <th className="p-3 font-semibold text-gray-600">Actions</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Name</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">SAE ID</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Team</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Role</th>
+                        <th className="p-2 sm:p-3 font-semibold text-gray-600 whitespace-nowrap">Actions</th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-200">
                       {/* Use filteredAllUsers */}
                       {filteredAllUsers.map(aUser => (
                         <tr key={aUser.id} className="hover:bg-gray-50">
-                          <td className="p-3">{aUser.name}</td>
-                          <td className="p-3">{aUser.saeId || 'Pending'}</td>
-                          <td className="p-3">{aUser.team || 'N/A'}</td>
-                          <td className="p-3">{aUser.permissionRole}</td>
-                          <td className="p-3 flex flex-wrap gap-2">
-                            <button onClick={() => setViewingUser(aUser)} className="text-xs text-blue-600 hover:underline">View</button>
-                            {userProfile?.permissionRole === 'super-admin' && (
-                                <button onClick={() => setEditingUser(aUser)} className="text-xs text-indigo-600 hover:underline">Edit Role/Title</button>
-                            )}
-                            <button onClick={() => setDeletingUser(aUser)} className="text-xs text-red-600 hover:underline">Delete</button>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.name}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.saeId || 'Pending'}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.team || 'N/A'}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap text-xs">{aUser.permissionRole}</td>
+                          <td className="p-2 sm:p-3">
+                            <div className="flex flex-nowrap gap-2 whitespace-nowrap">
+                              <button onClick={() => setViewingUser(aUser)} className="text-xs text-blue-600 hover:underline">View</button>
+                              {userProfile?.permissionRole === 'super-admin' && (
+                                  <button onClick={() => setEditingUser(aUser)} className="text-xs text-indigo-600 hover:underline">Edit</button>
+                              )}
+                              <button onClick={() => setDeletingUser(aUser)} className="text-xs text-red-600 hover:underline">Delete</button>
+                            </div>
                           </td>
                         </tr>
                       ))}

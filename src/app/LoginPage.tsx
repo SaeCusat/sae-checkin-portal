@@ -74,6 +74,19 @@ export default function LoginPage() {
   return (
     <>
       <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+        {/* SAE Logo above login box */}
+        <div className="mb-6 animate-fade-in">
+          <Image 
+            src="/logo/sae-logo.png" 
+            alt="SAE CUSAT Logo" 
+            width={120} 
+            height={60}
+            priority
+            className="mx-auto drop-shadow-lg"
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))' }}
+          />
+        </div>
+
         {/* 
           RESPONSIVE CONTAINER
           - Mobile (320px+): Full width with padding
