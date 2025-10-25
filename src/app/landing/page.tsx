@@ -200,66 +200,183 @@ export default function LandingPage() {
 
   // --- Render Logic ---
   if (loading || isCheckedIn === null) {
-    return <div className="flex justify-center items-center min-h-screen"><p>Loading Check-in Status...</p></div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading Check-in Status...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
-      <main className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-        <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-md">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Lab Check-in/Out</h2>
-            {userProfile && <p className="mt-1 text-gray-600">Welcome, {userProfile.name}</p>}
+      <main className="flex flex-col items-center justify-center min-h-screen p-4">
+        {/* Enhanced Check-in Card */}
+        <div className="w-full max-w-md animate-fade-in">
+          {/* Header Card with Status Badge */}
+          <div className="card-solid-bg rounded-t-2xl shadow-elevated p-6 border-b-2 border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Lab Check-in</h2>
+                {userProfile && <p className="text-sm text-gray-600 mt-1">Welcome, <span className="font-semibold">{userProfile.name}</span></p>}
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${isCheckedIn ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                {isCheckedIn ? '✓ Checked In' : 'Not In Lab'}
+              </div>
+            </div>
           </div>
 
-          {error && <p className="p-3 text-sm text-center text-red-800 bg-red-100 rounded-md">{error}</p>}
+          {/* Main Action Card */}
+          <div className="card-solid-bg rounded-b-2xl shadow-elevated p-8">
+            {error && (
+              <div className="mb-6 p-4 text-sm text-center text-red-800 bg-red-50 rounded-lg border border-red-200 animate-fade-in">
+                <svg className="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            )}
 
-          <div className="flex flex-col space-y-4">
-            <button
-              onClick={handleCheckIn}
-              disabled={isCheckedIn || isSubmitting}
-              className="px-4 py-3 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              Confirm Check In
-            </button>
-            <button
-              onClick={handleCheckOut}
-              disabled={!isCheckedIn || isSubmitting}
-              className="px-4 py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              Confirm Check Out
-            </button>
-          </div>
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              {/* Check In Button */}
+              <button
+                onClick={handleCheckIn}
+                disabled={isCheckedIn || isSubmitting}
+                className={`w-full group relative overflow-hidden px-6 py-4 font-bold text-white rounded-xl transition-all duration-200 ${
+                  isCheckedIn || isSubmitting
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-linear-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-soft hover:shadow-elevated hover-lift'
+                }`}
+              >
+                <span className="relative z-10 flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  {isSubmitting && !isCheckedIn ? 'Checking In...' : 'Check In'}
+                </span>
+                {!isCheckedIn && !isSubmitting && (
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                )}
+              </button>
 
-          <div className="text-center mt-4">
-            <Link href="/profile" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-               Go Back to My Profile
-            </Link>
+              {/* Check Out Button */}
+              <button
+                onClick={handleCheckOut}
+                disabled={!isCheckedIn || isSubmitting}
+                className={`w-full group relative overflow-hidden px-6 py-4 font-bold text-white rounded-xl transition-all duration-200 ${
+                  !isCheckedIn || isSubmitting
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-linear-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-soft hover:shadow-elevated hover-lift'
+                }`}
+              >
+                <span className="relative z-10 flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {isSubmitting && isCheckedIn ? 'Checking Out...' : 'Check Out'}
+                </span>
+                {isCheckedIn && !isSubmitting && (
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                )}
+              </button>
+            </div>
+
+            {/* Info Section */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-start space-x-3 text-sm text-gray-600">
+                <svg className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-medium text-gray-700 mb-1">Quick Tips:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Check in when you arrive at the lab</li>
+                    <li>• Check out when you leave</li>
+                    <li>• Last person out will need to secure the lab</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Back Link */}
+            <div className="text-center mt-6">
+              <Link 
+                href="/profile" 
+                className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to My Profile
+              </Link>
+            </div>
           </div>
         </div>
       </main>
 
-      {/* --- NEW: Last Person Out Modal --- */}
+      {/* --- Enhanced Last Person Out Modal --- */}
       {showLastPersonModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-xl space-y-4 text-center">
-             <h2 className="text-xl font-bold text-orange-600 mb-4">You are the Last Person Out!</h2>
-             <p className="text-gray-700">
-                Please double-check that all lights and equipment are turned off, windows are closed, and the lab door is securely locked.
-             </p>
-             <p className="font-semibold">Confirm lab is secured?</p>
-             <div className="flex justify-center space-x-4 pt-4">
-                {/* Optional: Add a cancel button if needed */}
-                {/* <button type="button" onClick={() => setShowLastPersonModal(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button> */}
-                <button
-                  type="button"
-                  onClick={handleConfirmClosure}
-                  disabled={isSubmitting}
-                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md disabled:bg-gray-400 hover:bg-blue-700"
-                >
-                  {isSubmitting ? 'Confirming...' : 'Yes, Lab Secured'}
-                </button>
-             </div>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="card-solid-bg rounded-2xl shadow-elevated p-8 w-full max-w-md space-y-5">
+            {/* Icon */}
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Last Person Out!</h2>
+              <p className="text-gray-600 mb-4">
+                Please ensure the lab is secure before leaving:
+              </p>
+              <ul className="text-left space-y-2 text-sm text-gray-600 mb-6">
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-600 mr-2 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  All lights and equipment are turned off
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-600 mr-2 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Windows are closed and secured
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-600 mr-2 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Lab door is locked properly
+                </li>
+              </ul>
+            </div>
+
+            {/* Action Button */}
+            <button
+              type="button"
+              onClick={handleConfirmClosure}
+              disabled={isSubmitting}
+              className="w-full px-6 py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl disabled:bg-gray-400 hover:from-blue-700 hover:to-indigo-700 shadow-soft hover:shadow-elevated transition-all duration-200 hover-lift"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Confirming...
+                </span>
+              ) : (
+                'Yes, Lab is Secured'
+              )}
+            </button>
           </div>
         </div>
       )}

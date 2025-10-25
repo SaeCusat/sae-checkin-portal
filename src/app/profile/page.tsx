@@ -239,12 +239,12 @@ export default function ProfilePage() {
   // Main Render
   return (
     <>
-      <main className="flex flex-col items-center min-h-screen bg-gray-100 p-4 pt-10 pb-10">
-        <div className="w-full max-w-md mx-auto space-y-6">
+      <main className="flex flex-col items-center min-h-screen p-4 pt-10 pb-10">
+        <div className="w-full max-w-md mx-auto space-y-6 animate-fade-in">
 
-          {/* ----- RESTORED VIRTUAL ID CARD LAYOUT ----- */}
-          <div className="rounded-2xl bg-linear-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-2xl overflow-hidden">
-             {/* Main content padding - Adjusted to match old style */}
+          {/* ----- VIRTUAL ID CARD LAYOUT ----- */}
+          <div className="rounded-2xl bg-linear-to-br from-gray-900 via-blue-900 to-gray-800 text-white shadow-elevated overflow-hidden">
+             {/* Main content padding */}
              <div className="p-6">
                 {/* Header: Logo, Title, Status */}
                 <div className="flex justify-between items-center"> {/* Use items-center from old */}
@@ -318,55 +318,109 @@ export default function ProfilePage() {
           {/* ----- END OF VIRTUAL ID CARD ----- */}
 
 
-          {/* Action Buttons (Using refined styles) */}
-          <div className="p-4 bg-white rounded-lg shadow-md space-y-3">
+          {/* Action Buttons */}
+          <div className="p-4 card-solid-bg rounded-xl shadow-soft space-y-3">
              {isAdmin && (
                 <Link href="/admin"
-                 className="block w-full text-center px-4 py-3 font-semibold text-sm text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:shadow-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 ease-in-out"
+                 className="block w-full text-center px-4 py-3 font-semibold text-sm text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-soft hover:shadow-elevated hover-lift focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                  >
+                  <svg className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                   Admin Dashboard
                 </Link>
              )}
              <button
                 onClick={() => setIsEditModalOpen(true)}
-                className="block w-full px-4 py-2 font-semibold text-sm text-indigo-700 bg-indigo-100 rounded-lg shadow-sm hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150 ease-in-out"
+                className="block w-full px-4 py-2.5 font-semibold text-sm text-indigo-700 bg-indigo-50 rounded-lg shadow-soft hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150"
               >
+                <svg className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
                 Edit Profile
              </button>
              <button
                 onClick={() => auth.signOut()}
-                className="block w-full px-4 py-2 font-semibold text-sm text-gray-700 bg-gray-200 rounded-lg shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-150 ease-in-out"
+                className="block w-full px-4 py-2.5 font-semibold text-sm text-gray-700 bg-gray-100 rounded-lg shadow-soft hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-150"
              >
+                <svg className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 Sign Out
              </button>
           </div>
 
-          {/* Attendance History Section (remains the same) */}
-          <div className="p-6 bg-white rounded-lg shadow-md">
+          {/* Attendance History Section */}
+          <div className="p-6 card-solid-bg rounded-xl shadow-soft">
              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-               <h3 className="text-lg sm:text-xl font-bold text-gray-800">My Attendance History</h3>
-               <input type="date" value={historyFilterDate} onChange={(e) => setHistoryFilterDate(e.target.value)} className="border rounded-md px-2 py-1 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" max={new Date().toISOString().split('T')[0]}/>
+               <h3 className="text-lg sm:text-xl font-bold gradient-text">My Attendance History</h3>
+               <input 
+                 type="date" 
+                 value={historyFilterDate} 
+                 onChange={(e) => setHistoryFilterDate(e.target.value)} 
+                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm shadow-soft focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" 
+                 max={new Date().toISOString().split('T')[0]}
+               />
             </div>
-            {historyLoading ? ( <p className="text-gray-500 text-center py-4">Loading history...</p> )
+            {historyLoading ? ( 
+              <p className="text-gray-500 text-center py-8 flex items-center justify-center">
+                <svg className="animate-spin h-5 w-5 mr-3 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading history...
+              </p> 
+            )
             : attendanceHistory.length > 0 ? (
-              <div className="overflow-x-auto max-h-60 border rounded-md">
+              <div className="overflow-x-auto max-h-60 border border-gray-200 rounded-lg shadow-soft">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-100 sticky top-0 z-10"><tr><th className="p-2 font-semibold text-gray-600">Date</th><th className="p-2 font-semibold text-gray-600">Check In</th><th className="p-2 font-semibold text-gray-600">Check Out</th></tr></thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {attendanceHistory.map(record => ( <tr key={record.id} className="hover:bg-gray-50"><td className="p-2 text-gray-700">{formatTimestamp(record.checkInTime, 'date')}</td><td className="p-2 text-gray-700">{formatTimestamp(record.checkInTime, 'time')}</td><td className="p-2 text-gray-700">{formatTimestamp(record.checkOutTime, 'time')}</td></tr> ))}
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="p-3 font-semibold text-gray-700">Date</th>
+                      <th className="p-3 font-semibold text-gray-700">Check In</th>
+                      <th className="p-3 font-semibold text-gray-700">Check Out</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {attendanceHistory.map(record => ( 
+                      <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-3 text-gray-700">{formatTimestamp(record.checkInTime, 'date')}</td>
+                        <td className="p-3 text-gray-700">{formatTimestamp(record.checkInTime, 'time')}</td>
+                        <td className="p-3 text-gray-700">{formatTimestamp(record.checkOutTime, 'time')}</td>
+                      </tr> 
+                    ))}
                   </tbody>
                 </table>
               </div>
-            ) : ( <p className="text-gray-500 text-center py-4">No attendance records found for {new Date(historyFilterDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}.</p> )}
+            ) : ( 
+              <div className="text-center py-8 text-gray-500">
+                <svg className="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p>No attendance records found for {new Date(historyFilterDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}.</p>
+              </div>
+            )}
           </div>
         </div>
       </main>
 
-      {/* Edit Profile Modal (remains the same) */}
+      {/* Edit Profile Modal */}
       {isEditModalOpen && userProfile && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <form onSubmit={handleUpdateProfile} className="bg-white rounded-lg p-6 sm:p-8 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
-             <h2 className="text-2xl font-bold mb-4 text-gray-800">Edit Your Profile</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in">
+          <form onSubmit={handleUpdateProfile} className="card-solid-bg rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-elevated space-y-5 max-h-[90vh] overflow-y-auto animate-fade-in">
+             <div className="flex items-center justify-between mb-4">
+               <h2 className="text-2xl font-bold gradient-text">Edit Your Profile</h2>
+               <button 
+                 type="button" 
+                 onClick={() => setIsEditModalOpen(false)} 
+                 className="text-gray-400 hover:text-gray-600 transition-colors"
+               >
+                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                 </svg>
+               </button>
+             </div>
              {/* Common fields */}
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-style"/></div>
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label><input type="tel" value={formData.mobileNumber} onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })} className="input-style"/></div>

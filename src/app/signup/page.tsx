@@ -36,7 +36,7 @@ const InputField = ({ name, type, placeholder, required, onChange, value, classN
     options?: string[];
 }) => (
     <div className={className}>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1.5">
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         {type === 'select' && options ? (
@@ -46,7 +46,7 @@ const InputField = ({ name, type, placeholder, required, onChange, value, classN
                 required={required}
                 value={value}
                 onChange={onChange}
-                className="input-style"
+                className="block w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all"
             >
                 {name === 'department' && <option value="" disabled>Select Department</option>}
                  {name === 'semester' && options.map(opt => <option key={opt} value={`S${opt}`}>Semester {opt}</option>)}
@@ -61,7 +61,7 @@ const InputField = ({ name, type, placeholder, required, onChange, value, classN
                 required={required}
                 value={value}
                 onChange={onChange}
-                className="input-style"
+                className="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all"
             />
         )}
     </div>
@@ -156,48 +156,58 @@ export default function SignUpPage() {
     };
 
     return (
-        <main className="flex items-center justify-center min-h-screen bg-linear-to-br from-gray-100 via-blue-50 to-gray-100 p-4 py-12">
-            <div className="w-full max-w-3xl p-8 md:p-10 space-y-8 bg-white rounded-xl shadow-lg">
+        <main className="flex items-center justify-center min-h-screen p-4 py-12">
+            <div className="w-full max-w-3xl p-8 md:p-10 space-y-8 card-solid-bg rounded-2xl shadow-elevated animate-fade-in">
                  <div className="flex justify-center mb-6">
                     <Image src="/logo/sae-logo.png" alt="SAE CUSAT Logo" width={100} height={50} />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold text-gray-900">New Member Registration</h2>
+                    <h2 className="text-3xl font-bold gradient-text">New Member Registration</h2>
                     <p className="mt-2 text-sm text-gray-600">Your SAE ID will be assigned after admin approval.</p>
                 </div>
 
                 {message ? (
-                    <div className="p-4 text-center text-green-800 bg-green-100 rounded-md shadow-sm">
-                        <p className="font-semibold">{message}</p>
-                        <Link href="/" className="mt-4 inline-block font-bold text-indigo-600 hover:text-indigo-500">
+                    <div className="p-6 text-center text-green-800 bg-green-50 rounded-xl shadow-soft border border-green-200 animate-fade-in space-y-4">
+                        <div className="inline-block p-3 bg-green-100 rounded-full">
+                          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="font-semibold text-lg">{message}</p>
+                        <Link href="/" className="inline-block mt-4 px-6 py-2.5 font-semibold text-white bg-linear-to-r from-indigo-600 to-indigo-700 rounded-lg hover:from-indigo-700 hover:to-indigo-800 shadow-soft hover:shadow-elevated transition-all duration-200 hover-lift">
                             Return to Login Page
                         </Link>
                     </div>
                 ) : (
                     <form className="mt-8 space-y-6" onSubmit={handleSignUp}>
                         {/* User Type Tabs */}
-                        <div className="flex justify-center border-b border-gray-200 mb-6">
-                            {/* Styling adjusted for tabs */}
+                        <div className="flex justify-center gap-2 p-1 bg-gray-100 rounded-lg shadow-soft mb-6">
                             <button
                                 type="button"
                                 onClick={() => setUserType('student')}
-                                className={`px-5 py-2 text-sm font-semibold rounded-t-md transition-colors duration-150 ease-in-out ${
+                                className={`flex-1 px-6 py-2.5 text-sm font-semibold rounded-md transition-all duration-200 ${
                                     userType === 'student'
-                                    ? 'bg-indigo-50 border-b-2 border-indigo-600 text-indigo-700'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-white text-indigo-700 shadow-soft'
+                                    : 'text-gray-600 hover:text-gray-900'
                                 }`}
                             >
+                                <svg className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
                                 Student
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setUserType('faculty')}
-                                className={`px-5 py-2 text-sm font-semibold rounded-t-md transition-colors duration-150 ease-in-out ${
+                                className={`flex-1 px-6 py-2.5 text-sm font-semibold rounded-md transition-all duration-200 ${
                                     userType === 'faculty'
-                                    ? 'bg-indigo-50 border-b-2 border-indigo-600 text-indigo-700'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-white text-indigo-700 shadow-soft'
+                                    : 'text-gray-600 hover:text-gray-900'
                                 }`}
                             >
+                                <svg className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
                                 Faculty
                             </button>
                         </div>
@@ -233,52 +243,43 @@ export default function SignUpPage() {
                             <InputField name="photoUrl" type="url" label="Photo URL (Optional)" placeholder="https://..." onChange={handleChange} value={formData.photoUrl} className="md:col-span-2" />
                         </div>
 
-                        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                        {error && (
+                          <div className="p-4 text-sm text-center text-red-800 bg-red-50 rounded-lg border border-red-200 animate-fade-in">
+                            <svg className="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                            {error}
+                          </div>
+                        )}
 
                         <div className="pt-4">
-                            <button type="submit" disabled={isSubmitting} className="w-full py-3 px-4 font-semibold text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:bg-gray-400 disabled:shadow-none">
-                                {isSubmitting ? 'Registering...' : 'Submit for Approval'}
+                            <button 
+                              type="submit" 
+                              disabled={isSubmitting} 
+                              className="w-full py-3 px-4 font-semibold text-white bg-linear-to-r from-blue-600 to-indigo-700 rounded-lg shadow-soft hover:shadow-elevated transition-all duration-200 hover-lift disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-soft disabled:transform-none"
+                            >
+                                {isSubmitting ? (
+                                  <span className="flex items-center justify-center">
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Registering...
+                                  </span>
+                                ) : 'Submit for Approval'}
                             </button>
                         </div>
                     </form>
                 )}
-                 <div className="text-sm text-center pt-4 border-t mt-6">
+                 <div className="text-sm text-center pt-4 border-t mt-6 border-gray-200">
                     <p className="text-gray-600">
                         Already have an account?{' '}
-                        <Link href="/" className="font-medium text-indigo-600 hover:text-indigo-500">
+                        <Link href="/" className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
                            Sign In Here
                         </Link>
                     </p>
                 </div>
             </div>
-            {/* Style definitions moved outside main component */}
-            <style jsx global>{`
-              .input-style {
-                display: block; width: 100%; height: 2.75rem; /* 44px */
-                padding: 0.5rem 0.75rem; /* 8px 12px */
-                font-size: 0.875rem; /* 14px */ line-height: 1.25rem; /* 20px */
-                border: 1px solid #D1D5DB; /* border-gray-300 */
-                border-radius: 0.375rem; /* rounded-md */
-                appearance: none; /* remove default styling */
-                background-color: #fff;
-                box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
-                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-              }
-              .input-style:focus {
-                outline: 2px solid transparent; outline-offset: 2px;
-                border-color: #4F46E5; /* focus:border-indigo-500 */
-                box-shadow: 0 0 0 3px rgb(79 70 229 / 0.2); /* Adjusted focus ring */
-              }
-              /* Style selects slightly differently */
-              select.input-style {
-                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-                background-position: right 0.5rem center;
-                background-repeat: no-repeat;
-                background-size: 1.5em 1.5em;
-                padding-right: 2.5rem;
-              }
-            `}</style>
         </main>
     );
 }
-
