@@ -5,7 +5,8 @@ import { auth, firestore } from '../../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import Image from 'next/image'; // Import Image for logo
+import Image from 'next/image';
+import CustomDropdown from '../../components/CustomDropdown';
 
 // Helper function to convert Google Drive links
 function convertGoogleDriveUrl(url: string): string {
@@ -24,46 +25,30 @@ const TEAM_OPTIONS = [
 ];
 
 // Helper component for form inputs with labels
-const InputField = ({ name, type, placeholder, required, onChange, value, className = '', label, options }: {
+const InputField = ({ name, type, placeholder, required, onChange, value, className = '', label }: {
     name: string;
     type: string;
     placeholder?: string;
     required?: boolean;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     value: string | number;
     className?: string;
     label: string;
-    options?: string[];
 }) => (
     <div className={className}>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1.5">
             {label} {required && <span className="text-red-500">*</span>}
         </label>
-        {type === 'select' && options ? (
-            <select
-                id={name}
-                name={name}
-                required={required}
-                value={value}
-                onChange={onChange}
-                className="block w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all"
-            >
-                {name === 'department' && <option value="" disabled>Select Department</option>}
-                 {name === 'semester' && options.map(opt => <option key={opt} value={`S${opt}`}>Semester {opt}</option>)}
-                 {name !== 'semester' && options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        ) : (
-            <input
-                id={name}
-                name={name}
-                type={type}
-                placeholder={placeholder}
-                required={required}
-                value={value}
-                onChange={onChange}
-                className="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all"
-            />
-        )}
+        <input
+            id={name}
+            name={name}
+            type={type}
+            placeholder={placeholder}
+            required={required}
+            value={value}
+            onChange={onChange}
+            className="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all min-h-11"
+        />
     </div>
 );
 
@@ -157,13 +142,19 @@ export default function SignUpPage() {
 
     return (
         <main className="flex items-center justify-center min-h-screen p-4 py-12">
-            <div className="w-full max-w-3xl p-8 md:p-10 space-y-8 card-solid-bg rounded-2xl shadow-elevated animate-fade-in">
+            {/* 
+              RESPONSIVE CONTAINER
+              - Mobile (320px+): Full width with minimal padding
+              - Tablet (768px+): Max width 768px with more padding
+              - Desktop (1024px+): Max width 896px (3xl)
+            */}
+            <div className="w-full max-w-3xl p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8 card-solid-bg rounded-2xl shadow-elevated animate-fade-in">
                  <div className="flex justify-center mb-6">
                     <Image src="/logo/sae-logo.png" alt="SAE CUSAT Logo" width={100} height={50} />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold gradient-text">New Member Registration</h2>
-                    <p className="mt-2 text-sm text-gray-600">Your SAE ID will be assigned after admin approval.</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold gradient-text">New Member Registration</h2>
+                    <p className="mt-2 text-xs sm:text-sm text-gray-600">Your SAE ID will be assigned after admin approval.</p>
                 </div>
 
                 {message ? (
@@ -224,9 +215,32 @@ export default function SignUpPage() {
                             {/* Conditional Fields */}
                             {userType === 'student' && (
                                 <>
-                                    <InputField name="branch" type="select" label="Branch" required onChange={handleChange} value={formData.branch} options={BRANCH_OPTIONS} />
-                                    <InputField name="semester" type="select" label="Semester" required onChange={handleChange} value={formData.semester} options={SEMESTER_OPTIONS} />
-                                    <InputField name="team" type="select" label="Team" required onChange={handleChange} value={formData.team} options={TEAM_OPTIONS} />
+                                    <CustomDropdown
+                                        name="branch"
+                                        label="Branch"
+                                        value={formData.branch}
+                                        options={BRANCH_OPTIONS}
+                                        onChange={(value) => setFormData({ ...formData, branch: value })}
+                                        required
+                                    />
+                                    <CustomDropdown
+                                        name="semester"
+                                        label="Semester"
+                                        value={formData.semester}
+                                        options={SEMESTER_OPTIONS.map(s => `S${s}`)}
+                                        onChange={(value) => setFormData({ ...formData, semester: value })}
+                                        required
+                                        searchable={false}
+                                        renderOption={(option) => `Semester ${option.replace('S', '')}`}
+                                    />
+                                    <CustomDropdown
+                                        name="team"
+                                        label="Team"
+                                        value={formData.team}
+                                        options={TEAM_OPTIONS}
+                                        onChange={(value) => setFormData({ ...formData, team: value })}
+                                        required
+                                    />
                                     <InputField name="joinYear" type="number" label="Year of Joining" placeholder="YYYY" required onChange={handleChange} value={formData.joinYear} />
                                     <InputField name="guardianNumber" type="tel" label="Guardian's Number" required onChange={handleChange} value={formData.guardianNumber} />
                                     <InputField name="bloodGroup" type="text" label="Blood Group" placeholder="e.g., O+" required onChange={handleChange} value={formData.bloodGroup} />
@@ -235,7 +249,14 @@ export default function SignUpPage() {
 
                             {userType === 'faculty' && (
                                 <>
-                                    <InputField name="department" type="select" label="Department" required onChange={handleChange} value={formData.department} options={BRANCH_OPTIONS} />
+                                    <CustomDropdown
+                                        name="department"
+                                        label="Department"
+                                        value={formData.department}
+                                        options={BRANCH_OPTIONS}
+                                        onChange={(value) => setFormData({ ...formData, department: value })}
+                                        required
+                                    />
                                     <InputField name="guardianNumber" type="tel" label="Emergency Contact (Optional)" onChange={handleChange} value={formData.guardianNumber} />
                                     <InputField name="bloodGroup" type="text" label="Blood Group (Optional)" placeholder="e.g., O+" onChange={handleChange} value={formData.bloodGroup} />
                                 </>

@@ -17,6 +17,7 @@ import {
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import CustomDropdown from '../../components/CustomDropdown';
 
 // --- Type and Constant Definitions ---
 const TEAM_OPTIONS = [
@@ -24,6 +25,17 @@ const TEAM_OPTIONS = [
   "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
 ];
 const BRANCH_OPTIONS = ["ME", "EEE", "ECE", "SF", "CS", "IT", "CE"];
+
+// Branch/Department Full Forms
+const BRANCH_FULL_FORMS: { [key: string]: string } = {
+  "EEE": "Electrical & Electronics",
+  "CS": "Computer Science",
+  "ME": "Mechanical Engineering",
+  "IT": "Information Technology",
+  "SF": "Safety & Fire Engineering",
+  "ECE": "Electronics & Communication",
+  "CE": "Civil Engineering"
+};
 
 // --- NEW: Define Placeholder URLs ---
 const STUDENT_PLACEHOLDER_BASE = 'https://placehold.co/88x88/cccccc/444444?text=';
@@ -290,13 +302,13 @@ export default function ProfilePage() {
                     {/* Conditional rendering based on userType */}
                     {userProfile.userType === 'student' && (
                         <>
-                            <DetailRow label="Branch" value={userProfile.branch} />
+                            <DetailRow label="Branch" value={BRANCH_FULL_FORMS[userProfile.branch || ''] || userProfile.branch} />
                             <DetailRow label="Semester" value={userProfile.semester} />
                             {/* Team REMOVED from here, will be in highlighted section */}
                         </>
                     )}
                     {userProfile.userType === 'faculty' && (
-                        <DetailRow label="Department" value={userProfile.branch} />
+                        <DetailRow label="Department" value={BRANCH_FULL_FORMS[userProfile.branch || ''] || userProfile.branch} />
                     )}
                     {/* Common Details */}
                     <DetailRow label="Email" value={userProfile.email} />
@@ -427,8 +439,32 @@ export default function ProfilePage() {
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label><input type="text" value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} className="input-style"/></div>
              <div><label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label><input type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} className="input-style"/> <p className="mt-1 text-xs text-gray-500">Paste a public link (e.g., from Google Drive, set to &apos;Anyone with the link&apos;).</p></div>
             {/* Conditional Fields */}
-            {userProfile.userType === 'student' && ( <> <div><label className="block text-sm font-medium text-gray-700 mb-1">Team Name</label><select value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })} className="input-style"><option value="" disabled={!!formData.team}>Select Team</option>{TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}</select></div> <div><label className="block text-sm font-medium text-gray-700 mb-1">Guardian&apos;s Number</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> </> )}
-            {userProfile.userType === 'faculty' && ( <> <div><label className="block text-sm font-medium text-gray-700 mb-1">Department</label><select value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="input-style"><option value="" disabled={!!formData.department}>Select Department</option>{BRANCH_OPTIONS.map(dept => <option key={dept} value={dept}>{dept}</option>)}</select></div> <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact (Optional)</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> </> )}
+            {userProfile.userType === 'student' && ( 
+              <> 
+                <CustomDropdown
+                  name="team"
+                  label="Team Name"
+                  value={formData.team}
+                  options={TEAM_OPTIONS}
+                  onChange={(value) => setFormData({ ...formData, team: value })}
+                  required
+                />
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Guardian&apos;s Number</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> 
+              </> 
+            )}
+            {userProfile.userType === 'faculty' && ( 
+              <> 
+                <CustomDropdown
+                  name="department"
+                  label="Department"
+                  value={formData.department}
+                  options={BRANCH_OPTIONS}
+                  onChange={(value) => setFormData({ ...formData, department: value })}
+                  required
+                />
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact (Optional)</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> 
+              </> 
+            )}
             {/* Buttons */}
             <div className="flex justify-end space-x-4 pt-4"> <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">Cancel</button> <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors">Save Changes</button> </div>
           </form>
