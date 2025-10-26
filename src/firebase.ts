@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -26,5 +26,10 @@ if (getApps().length === 0) {
 
 const auth = getAuth(app);
 const firestore = getFirestore(app);
+
+// Enable persistent login - users stay logged in unless they explicitly sign out
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error("Failed to enable auth persistence:", error);
+});
 
 export { app, auth, firestore };
