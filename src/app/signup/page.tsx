@@ -64,6 +64,7 @@ export default function SignUpPage() {
         branch: BRANCH_OPTIONS[0],
         semester: 'S1',
         team: TEAM_OPTIONS[0],
+        teams: [] as string[],
         joinYear: new Date().getFullYear().toString(),
         department: BRANCH_OPTIONS[0],
         bloodGroup: BLOOD_GROUP_OPTIONS[0],
@@ -71,12 +72,45 @@ export default function SignUpPage() {
         guardianNumber: '',
         photoUrl: '',
     });
+    const [photoUrlValid, setPhotoUrlValid] = useState<boolean | null>(null);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        if (e.target.name === 'photoUrl') {
+            setPhotoUrlValid(null);
+        }
+    };
+
+    // Toggle team in the teams array
+    const toggleTeam = (teamName: string) => {
+        const next = new Set(formData.teams);
+        if (next.has(teamName)) next.delete(teamName);
+        else next.add(teamName);
+        const teamsArr = Array.from(next);
+        setFormData({ ...formData, teams: teamsArr, team: teamsArr[0] || '' });
+    };
+
+    // Validate photo URL by attempting to load the image
+    const validatePhotoUrl = (url: string) => {
+        if (!url) { setPhotoUrlValid(null); return; }
+        try {
+            const img = document.createElement('img') as HTMLImageElement;
+            img.onload = () => setPhotoUrlValid(true);
+            img.onerror = () => setPhotoUrlValid(false);
+            img.src = url;
+            // If browser cached, onload/onerror may not fire; check naturalWidth after short delay
+            setTimeout(() => {
+                if (img.complete) {
+                    if (img.naturalWidth && img.naturalHeight) setPhotoUrlValid(true);
+                    else setPhotoUrlValid(false);
+                }
+            }, 300);
+        } catch {
+            setPhotoUrlValid(false);
+        }
     };
 
     const handleSignUp = async (e: FormEvent) => {
@@ -117,14 +151,20 @@ export default function SignUpPage() {
             if (userType === 'student') {
                 userData.branch = formData.branch;
                 userData.semester = formData.semester;
-                userData.team = formData.team;
+                // store primary team (legacy) and full teams array
+                userData.team = formData.team || (formData.teams && formData.teams[0]) || null;
+                userData.teams = formData.teams && formData.teams.length > 0 ? formData.teams : null;
+                // keep short form used by ID generation but also store full year for admin viewing
                 userData.joinYear = formData.joinYear.slice(-2);
+                userData.joinYearFull = formData.joinYear;
                 userData.guardianNumber = formData.guardianNumber;
             } else {
                 userData.branch = formData.department; // Store dept in branch field
                 userData.semester = null;
                 userData.team = null;
+                userData.teams = null;
                 userData.joinYear = null;
+                userData.joinYearFull = null;
                 userData.guardianNumber = formData.guardianNumber || null;
             }
 
@@ -234,14 +274,17 @@ export default function SignUpPage() {
                                         searchable={false}
                                         renderOption={(option) => `Semester ${option.replace('S', '')}`}
                                     />
-                                    <CustomDropdown
-                                        name="team"
-                                        label="Team"
-                                        value={formData.team}
-                                        options={TEAM_OPTIONS}
-                                        onChange={(value) => setFormData({ ...formData, team: value })}
-                                        required
-                                    />
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Teams <span className="text-xs text-gray-500">(select all that apply)</span></label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            {TEAM_OPTIONS.map(t => (
+                                                <label key={t} className="inline-flex items-center space-x-2 text-sm">
+                                                    <input type="checkbox" checked={formData.teams.includes(t)} onChange={() => toggleTeam(t)} className="h-4 w-4" />
+                                                    <span>{t}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <InputField name="joinYear" type="number" label="Year of Joining" placeholder="YYYY" required onChange={handleChange} value={formData.joinYear} />
                                     <InputField name="guardianNumber" type="tel" label="Guardian's Number" required onChange={handleChange} value={formData.guardianNumber} />
                                     <CustomDropdown
@@ -253,7 +296,12 @@ export default function SignUpPage() {
                                         required
                                         searchable={false}
                                     />
-                                    <InputField name="photoUrl" type="url" label="Photo URL" placeholder="https://..." onChange={handleChange} value={formData.photoUrl} className="md:col-span-2" required />
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Photo URL <span className="text-red-500">*</span></label>
+                                        <input id="photoUrl" name="photoUrl" type="url" placeholder="https://..." required value={formData.photoUrl} onChange={handleChange} onBlur={(e) => validatePhotoUrl(e.target.value)} className="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-soft transition-all min-h-11" />
+                                        {photoUrlValid === false && (<p className="text-xs text-red-600 mt-1">Could not load image from this URL — please check the link or remove it.</p>)}
+                                        {photoUrlValid === true && (<p className="text-xs text-green-600 mt-1">Photo URL looks good.</p>)}
+                                    </div>
                                 </>
                             )}
 

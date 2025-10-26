@@ -30,8 +30,10 @@ type UserProfile = {
   userType: 'student' | 'faculty';
   branch?: string; // Also used for faculty department
   joinYear?: string; // Student only
+  joinYearFull?: string | null;
   semester?: string; // Student only
-  team?: string; // Student only
+  team?: string | string[]; // Student only (legacy string or new array)
+  teams?: string[] | null;
   guardianNumber?: string; // Optional for faculty
   bloodGroup: string;
   mobileNumber: string;
@@ -41,6 +43,12 @@ type UserProfile = {
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
 };
+
+// Local team options (same as signup)
+const TEAM_OPTIONS = [
+  "TARUSA", "YETI", "ASTRON ENDURANCE", "MARUTSAKHA",
+  "HERMES", "ELEKTRA", "STORM RACING", "BEHEMOTH", "AROHA"
+];
 
 type AttendanceRecord = {
   id: string;
@@ -85,6 +93,16 @@ export default function AdminPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [pendingSearchTerm, setPendingSearchTerm] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+
+  // Toggle team selection when editing a user (super-admin)
+  const toggleEditingTeam = (teamName: string) => {
+    if (!editingUser) return;
+    const current = Array.isArray(editingUser.teams) ? [...editingUser.teams] : (editingUser.teams ? [...editingUser.teams] : []);
+    const idx = current.indexOf(teamName);
+    if (idx >= 0) current.splice(idx, 1);
+    else current.push(teamName);
+  setEditingUser({ ...editingUser, teams: current, team: current[0] || '' });
+  };
 
   // --- useEffect hooks remain the same ---
   useEffect(() => { // Auth listener
@@ -326,10 +344,16 @@ export default function AdminPage() {
       }
       try {
           const userDocRef = doc(firestore, 'users', editingUser.id);
-          await updateDoc(userDocRef, {
-              permissionRole: editingUser.permissionRole,
-              displayTitle: editingUser.displayTitle,
-          });
+      // also update teams if present (keep legacy team for compatibility)
+      const updated: Record<string, string | string[] | null> = {
+        permissionRole: editingUser.permissionRole,
+        displayTitle: editingUser.displayTitle,
+      };
+      if (editingUser.teams !== undefined) {
+        updated.teams = editingUser.teams && editingUser.teams.length > 0 ? editingUser.teams : null;
+        updated.team = editingUser.teams && editingUser.teams.length > 0 ? editingUser.teams[0] : (typeof editingUser.team === 'string' ? editingUser.team : null);
+      }
+      await updateDoc(userDocRef, updated);
           alert("User updated successfully.");
           setEditingUser(null);
       } catch (error) {
@@ -484,7 +508,7 @@ export default function AdminPage() {
                         <tr key={aUser.id} className="hover:bg-gray-50">
                           <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.name}</td>
                           <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.saeId || 'Pending'}</td>
-                          <td className="p-2 sm:p-3 whitespace-nowrap">{aUser.team || 'N/A'}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">{Array.isArray(aUser.teams) ? aUser.teams.join(', ') : (Array.isArray(aUser.team) ? aUser.team.join(', ') : (aUser.team || 'N/A'))}</td>
                           <td className="p-2 sm:p-3 whitespace-nowrap text-xs">{aUser.permissionRole}</td>
                           <td className="p-2 sm:p-3">
                             <div className="flex flex-nowrap gap-2 whitespace-nowrap">
@@ -540,7 +564,12 @@ export default function AdminPage() {
                 </div>
                 <p><strong>Type:</strong> <span className="capitalize">{viewingUser.userType}</span></p>
                 <p><strong>SAE ID:</strong> {viewingUser.saeId || <span className="italic text-gray-500">Pending</span>}</p>
-                {viewingUser.userType === 'student' && <p><strong>Team:</strong> {viewingUser.team || 'N/A'}</p>}
+                {viewingUser.userType === 'student' && (
+                  <>
+                    <p><strong>Year of Joining:</strong> {viewingUser.joinYearFull || (viewingUser.joinYear ? `20${viewingUser.joinYear}` : 'N/A')}</p>
+                    <p><strong>Team(s):</strong> {Array.isArray(viewingUser.teams) ? viewingUser.teams.join(', ') : (Array.isArray(viewingUser.team) ? viewingUser.team.join(', ') : (viewingUser.team || 'N/A'))}</p>
+                  </>
+                )}
                 <p><strong>Email:</strong> {viewingUser.email}</p>
                 <p><strong>{viewingUser.userType === 'faculty' ? 'Department' : 'Branch'}:</strong> {viewingUser.branch || 'N/A'}</p>
                 {viewingUser.userType === 'student' && <p><strong>Semester:</strong> {viewingUser.semester || 'N/A'}</p>}
@@ -562,8 +591,20 @@ export default function AdminPage() {
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <form onSubmit={handleUpdateUser} className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h2 className="text-2xl font-bold mb-4 text-gray-800">Edit {editingUser.name}</h2>
-             <div><label className="block text-sm font-medium text-gray-700 mb-1">Permission Role</label><select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="input-style"><option value="student">student</option><option value="admin">admin</option><option value="super-admin">super-admin</option></select></div>
-             <div><label className="block text-sm font-medium text-gray-700 mb-1">Display Title</label><input type="text" value={editingUser.displayTitle} onChange={e => setEditingUser({...editingUser, displayTitle: e.target.value})} className="input-style"/></div>
+               <div><label className="block text-sm font-medium text-gray-700 mb-1">Permission Role</label><select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="input-style"><option value="student">student</option><option value="admin">admin</option><option value="super-admin">super-admin</option></select></div>
+               <div><label className="block text-sm font-medium text-gray-700 mb-1">Display Title</label><input type="text" value={editingUser.displayTitle} onChange={e => setEditingUser({...editingUser, displayTitle: e.target.value})} className="input-style"/></div>
+               {/* Teams multi-select for super-admin */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">Teams (select all that apply)</label>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                   {TEAM_OPTIONS.map(t => (
+                     <label key={t} className="inline-flex items-center space-x-2 text-sm">
+                       <input type="checkbox" checked={Array.isArray(editingUser.teams) ? editingUser.teams.includes(t) : (Array.isArray(editingUser.team) ? editingUser.team.includes(t) : editingUser.team === t)} onChange={() => toggleEditingTeam(t)} className="h-4 w-4" />
+                       <span>{t}</span>
+                     </label>
+                   ))}
+                 </div>
+               </div>
              <div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">Cancel</button><button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors">Save Changes</button></div>
           </form>
         </div>

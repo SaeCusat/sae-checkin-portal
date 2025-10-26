@@ -47,8 +47,10 @@ type UserProfile = {
   userType: 'student' | 'faculty';
   branch?: string; // Also used for faculty department
   joinYear?: string;
+  joinYearFull?: string | null;
   semester?: string;
-  team?: string;
+  team?: string | string[];
+  teams?: string[] | null;
   guardianNumber?: string; // Optional
   bloodGroup: string;
   mobileNumber: string;
@@ -79,6 +81,7 @@ export default function ProfilePage() {
     bloodGroup: '',
     photoUrl: '',
     team: '',
+    teams: [] as string[],
     department: '',
     branch: '',
     semester: '',
@@ -122,7 +125,8 @@ export default function ProfilePage() {
             guardianNumber: data.guardianNumber || '',
             bloodGroup: data.bloodGroup || BLOOD_GROUP_OPTIONS[0],
             photoUrl: data.photoUrl || '',
-            team: data.userType === 'student' ? (data.team || TEAM_OPTIONS[0]) : '',
+            team: Array.isArray(data.team) ? data.team[0] : (data.team || TEAM_OPTIONS[0]),
+            teams: Array.isArray(data.teams) ? data.teams : (Array.isArray(data.team) ? data.team : []),
             department: data.userType === 'faculty' ? (data.branch || BRANCH_OPTIONS[0]) : '',
             branch: data.userType === 'student' ? (data.branch || BRANCH_OPTIONS[0]) : '',
             semester: data.userType === 'student' ? (data.semester || '') : '',
@@ -178,7 +182,8 @@ export default function ProfilePage() {
       guardianNumber: formData.guardianNumber || undefined,
     };
     if (userProfile.userType === 'student') {
-      updatedData.team = formData.team;
+      updatedData.teams = formData.teams.length > 0 ? formData.teams : [formData.team];
+      updatedData.team = formData.teams.length > 0 ? formData.teams[0] : formData.team;
       updatedData.branch = formData.branch;
       updatedData.semester = formData.semester;
     } else {
@@ -327,10 +332,18 @@ export default function ProfilePage() {
             </div> {/* End of p-6 div */}
 
             {/* --- RESTORED Highlighted Team Section (Student Only) --- */}
-            {userProfile.userType === 'student' && userProfile.team && (
-              <div className="bg-white/10 rounded-b-2xl px-6 py-3 text-center">
-                <span className="text-xs font-semibold tracking-widest opacity-70">TEAM</span>
-                <p className="text-lg font-bold">{userProfile.team}</p>
+            {userProfile.userType === 'student' && (
+              <div className="bg-white/10 rounded-b-2xl px-6 py-3">
+                <div className="text-center">
+                  <span className="text-xs font-semibold tracking-widest opacity-70">TEAM(S)</span>
+                  <p className="text-lg font-bold">
+                    {Array.isArray(userProfile.teams) && userProfile.teams.length > 0
+                      ? userProfile.teams.join(', ')
+                      : (Array.isArray(userProfile.team)
+                        ? userProfile.team.join(', ')
+                        : (userProfile.team || 'N/A'))}
+                  </p>
+                </div>
               </div>
             )}
              {/* --- End of Highlighted Team Section --- */}
@@ -475,14 +488,28 @@ export default function ProfilePage() {
                   searchable={false}
                   renderOption={(option) => `Semester ${option.replace('S', '')}`}
                 />
-                <CustomDropdown
-                  name="team"
-                  label="Team Name"
-                  value={formData.team}
-                  options={TEAM_OPTIONS}
-                  onChange={(value) => setFormData({ ...formData, team: value })}
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Teams</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {TEAM_OPTIONS.map((teamName) => (
+                      <label key={teamName} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.teams.includes(teamName)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, teams: [...formData.teams, teamName] });
+                            } else {
+                              setFormData({ ...formData, teams: formData.teams.filter(t => t !== teamName) });
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700">{teamName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Guardian&apos;s Number</label><input type="tel" value={formData.guardianNumber} onChange={(e) => setFormData({ ...formData, guardianNumber: e.target.value })} className="input-style"/></div> 
               </> 
             )}
