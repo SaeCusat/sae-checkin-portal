@@ -550,7 +550,6 @@ export default function AdminPage() {
                 <p><strong>Permission Role:</strong> {viewingUser.permissionRole}</p>
                 <p><strong>Display Title:</strong> {viewingUser.displayTitle || 'N/A'}</p>
                 <p><strong>Account Status:</strong> <span className={`font-semibold ${viewingUser.accountStatus === 'approved' ? 'text-green-600' : viewingUser.accountStatus === 'pending' ? 'text-orange-600' : 'text-red-600'}`}>{viewingUser.accountStatus}</span></p>
-                <p className="sm:col-span-2"><strong>Photo URL:</strong> {viewingUser.photoUrl ? <a href={viewingUser.photoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 break-all hover:underline">{viewingUser.photoUrl}</a> : 'Not provided'}</p>
             </div>
             <div className="mt-6 text-right">
               <button onClick={() => setViewingUser(null)} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">Close</button>
