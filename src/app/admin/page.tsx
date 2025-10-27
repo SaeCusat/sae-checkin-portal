@@ -38,7 +38,7 @@ type UserProfile = {
   bloodGroup: string;
   mobileNumber: string;
   photoUrl: string;
-  permissionRole: 'student' | 'admin' | 'super-admin';
+  permissionRole: 'student' | 'admin' | 'super-admin' | 'captain';
   displayTitle: string;
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
@@ -92,7 +92,9 @@ export default function AdminPage() {
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [pendingSearchTerm, setPendingSearchTerm] = useState('');
+  const [pendingTeamFilter, setPendingTeamFilter] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userTeamFilter, setUserTeamFilter] = useState('');
 
   // Toggle team selection when editing a user (super-admin)
   const toggleEditingTeam = (teamName: string) => {
@@ -110,8 +112,8 @@ export default function AdminPage() {
       if (currentUser) {
         const userDocRef = doc(firestore, 'users', currentUser.uid);
         const userDoc = await getDoc(userDocRef);
-        // Ensure user exists in Firestore and has an admin role
-        if (userDoc.exists() && ['admin', 'super-admin'].includes(userDoc.data().permissionRole)) {
+        // Ensure user exists in Firestore and has an admin/super-admin/captain role
+        if (userDoc.exists() && ['admin', 'super-admin', 'captain'].includes(userDoc.data().permissionRole)) {
           setUser(currentUser);
           setUserProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
         } else {
@@ -200,32 +202,53 @@ export default function AdminPage() {
 
   // --- Memoized Filtered Lists ---
   const filteredHistory = useMemo(() => {
-    if (!historySearchTerm) return history;
-    const lowerCaseSearch = historySearchTerm.toLowerCase();
-    return history.filter(rec =>
-      rec.userName?.toLowerCase().includes(lowerCaseSearch) ||
-      (rec.saeId && rec.saeId.toLowerCase().includes(lowerCaseSearch))
-    );
+    let filtered = history;
+    if (historySearchTerm) {
+      const lowerCaseSearch = historySearchTerm.toLowerCase();
+      filtered = filtered.filter(rec =>
+        rec.userName?.toLowerCase().includes(lowerCaseSearch) ||
+        (rec.saeId && rec.saeId.toLowerCase().includes(lowerCaseSearch))
+      );
+    }
+    return filtered;
   }, [history, historySearchTerm]);
 
   const filteredPendingUsers = useMemo(() => {
-    if (!pendingSearchTerm) return pendingUsers;
-    const lowerCaseSearch = pendingSearchTerm.toLowerCase();
-    return pendingUsers.filter(user =>
-      user.name?.toLowerCase().includes(lowerCaseSearch) ||
-      user.email?.toLowerCase().includes(lowerCaseSearch)
-    );
-  }, [pendingUsers, pendingSearchTerm]);
+    let filtered = pendingUsers;
+    if (pendingSearchTerm) {
+      const lowerCaseSearch = pendingSearchTerm.toLowerCase();
+      filtered = filtered.filter(user =>
+        user.name?.toLowerCase().includes(lowerCaseSearch) ||
+        user.email?.toLowerCase().includes(lowerCaseSearch)
+      );
+    }
+    if (pendingTeamFilter) {
+      filtered = filtered.filter(user => {
+        const userTeams = Array.isArray(user.teams) ? user.teams : (Array.isArray(user.team) ? user.team : (user.team ? [user.team] : []));
+        return userTeams.includes(pendingTeamFilter);
+      });
+    }
+    return filtered;
+  }, [pendingUsers, pendingSearchTerm, pendingTeamFilter]);
 
   const filteredAllUsers = useMemo(() => {
-    if (!userSearchTerm) return allUsers;
-    const lowerCaseSearch = userSearchTerm.toLowerCase();
-    return allUsers.filter(user =>
-      user.name?.toLowerCase().includes(lowerCaseSearch) ||
-      (user.saeId && user.saeId.toLowerCase().includes(lowerCaseSearch)) ||
-      user.email?.toLowerCase().includes(lowerCaseSearch)
-    );
-  }, [allUsers, userSearchTerm]);
+    let filtered = allUsers;
+    if (userSearchTerm) {
+      const lowerCaseSearch = userSearchTerm.toLowerCase();
+      filtered = filtered.filter(user =>
+        user.name?.toLowerCase().includes(lowerCaseSearch) ||
+        (user.saeId && user.saeId.toLowerCase().includes(lowerCaseSearch)) ||
+        user.email?.toLowerCase().includes(lowerCaseSearch)
+      );
+    }
+    if (userTeamFilter) {
+      filtered = filtered.filter(user => {
+        const userTeams = Array.isArray(user.teams) ? user.teams : (Array.isArray(user.team) ? user.team : (user.team ? [user.team] : []));
+        return userTeams.includes(userTeamFilter);
+      });
+    }
+    return filtered;
+  }, [allUsers, userSearchTerm, userTeamFilter]);
 
   // --- Action Handlers ---
 
@@ -385,7 +408,8 @@ export default function AdminPage() {
             <button onClick={() => router.push('/profile')} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">My Profile</button>
           </header>
 
-          {/* Live Status and History Grid */}
+          {/* Live Status and History Grid - Hidden for Captains */}
+          {userProfile?.permissionRole !== 'captain' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Live Status Column */}
             <div className="md:col-span-1 space-y-6">
@@ -441,12 +465,19 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Pending Approvals Card */}
           <div className="bg-white p-6 rounded-lg shadow-md">
              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Pending Approvals ({filteredPendingUsers.length})</h3>
-              <input type="text" placeholder="Search Name/Email..." value={pendingSearchTerm} onChange={(e) => setPendingSearchTerm(e.target.value)} className="input-style w-full sm:w-48"/>
+              <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                <input type="text" placeholder="Search Name/Email..." value={pendingSearchTerm} onChange={(e) => setPendingSearchTerm(e.target.value)} className="input-style flex-1 sm:flex-none sm:w-48"/>
+                <select value={pendingTeamFilter} onChange={(e) => setPendingTeamFilter(e.target.value)} className="input-style flex-1 sm:flex-none sm:w-40">
+                  <option value="">All Teams</option>
+                  {TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}
+                </select>
+              </div>
             </div>
              {pendingUsers.length === 0 ? (<p className="text-gray-500">No new members awaiting approval.</p>)
              : filteredPendingUsers.length === 0 ? (<p className="text-center text-gray-500 py-4">No pending users match your search.</p>)
@@ -488,7 +519,13 @@ export default function AdminPage() {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">User Management ({filteredAllUsers.length})</h3>
-                <input type="text" placeholder="Search Name/ID/Email..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="input-style w-full sm:w-56"/>
+                <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                  <input type="text" placeholder="Search Name/ID/Email..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="input-style flex-1 sm:flex-none sm:w-56"/>
+                  <select value={userTeamFilter} onChange={(e) => setUserTeamFilter(e.target.value)} className="input-style flex-1 sm:flex-none sm:w-40">
+                    <option value="">All Teams</option>
+                    {TEAM_OPTIONS.map(team => <option key={team} value={team}>{team}</option>)}
+                  </select>
+                </div>
               </div>
               {allUsers.length === 0 ? (<p className="text-gray-500">No users found in the system yet.</p>)
               : filteredAllUsers.length === 0 ? (<p className="text-center text-gray-500 py-4">No users match your search.</p>)
@@ -591,7 +628,7 @@ export default function AdminPage() {
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <form onSubmit={handleUpdateUser} className="bg-white rounded-lg p-8 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h2 className="text-2xl font-bold mb-4 text-gray-800">Edit {editingUser.name}</h2>
-               <div><label className="block text-sm font-medium text-gray-700 mb-1">Permission Role</label><select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="input-style"><option value="student">student</option><option value="admin">admin</option><option value="super-admin">super-admin</option></select></div>
+               <div><label className="block text-sm font-medium text-gray-700 mb-1">Permission Role</label><select value={editingUser.permissionRole} onChange={e => setEditingUser({...editingUser, permissionRole: e.target.value as UserProfile['permissionRole']})} className="input-style"><option value="student">student</option><option value="admin">admin</option><option value="captain">captain</option><option value="super-admin">super-admin</option></select></div>
                <div><label className="block text-sm font-medium text-gray-700 mb-1">Display Title</label><input type="text" value={editingUser.displayTitle} onChange={e => setEditingUser({...editingUser, displayTitle: e.target.value})} className="input-style"/></div>
                {/* Teams multi-select for super-admin */}
                <div>

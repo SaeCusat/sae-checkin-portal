@@ -55,7 +55,7 @@ type UserProfile = {
   bloodGroup: string;
   mobileNumber: string;
   photoUrl: string; // Can be empty string
-  permissionRole: 'student' | 'admin' | 'super-admin';
+  permissionRole: 'student' | 'admin' | 'super-admin' | 'captain';
   displayTitle: string;
   accountStatus: 'pending' | 'approved' | 'rejected';
   isCheckedIn: boolean;
@@ -227,7 +227,7 @@ export default function ProfilePage() {
      return ( <div className="flex flex-col justify-center items-center min-h-screen space-y-4 p-4 text-center"><p className="text-lg font-semibold text-red-600">Could not load profile data.</p><p className="text-sm text-gray-600">Please try again later or contact an administrator.</p><button onClick={() => auth.signOut()} className="mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">Sign Out</button></div> );
   }
 
-  const isAdmin = userProfile.permissionRole === 'admin' || userProfile.permissionRole === 'super-admin';
+  const isAdmin = userProfile.permissionRole === 'admin' || userProfile.permissionRole === 'super-admin' || userProfile.permissionRole === 'captain';
 
   // Helper component for perfectly aligned details from "old perfect code"
   const DetailRow = ({ label, value }: { label: string; value: string | undefined | null }) => (
